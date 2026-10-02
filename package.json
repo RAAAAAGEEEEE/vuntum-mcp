@@ -1,0 +1,16 @@
+{
+  "name": "vuntum-mcp-examples",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Examples for the public Vuntum MCP server (https://vuntum.com/mcp).",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "quickstart": "node examples/quickstart.mjs",
+    "check": "node examples/check.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0"
+  }
+}
