@@ -6,7 +6,9 @@ home and service robots. Every value it returns is dated and traceable to a sour
 of evidence.
 
 - **Endpoint:** `https://vuntum.com/mcp` (Streamable HTTP)
-- **Free, no key, no sign-up.** 60 requests per minute per IP address.
+- **Free, no key, no sign-up:** 100 tool calls per day per IP address. `initialize` and `tools/list` never count.
+- **Attribution required** in every use of the answers (field `attribution` in each response).
+- **Pro access** on request: [vuntum.com/fr/api-mcp#acces-pro](https://vuntum.com/fr/api-mcp#acces-pro).
 - **Read-only:** 16 tools, all annotated `readOnlyHint: true`. Nothing can be written.
 - **Registry name:** `com.vuntum/mcp` in the [official MCP registry](https://registry.modelcontextprotocol.io/v0/servers?search=com.vuntum)
 - **Status:** live and in use; version 0.1.0 of the public description (see [CHANGELOG.md](CHANGELOG.md)).
@@ -74,7 +76,8 @@ report a vulnerability: [SECURITY.md](SECURITY.md).
 
 ## Limits
 
-- 60 HTTP requests per minute per IP address, then HTTP 429.
+- 100 tool calls per day per IP address, then HTTP 429. Only `tools/call` counts: `initialize` and `tools/list` never do. Pro access (own key, higher limits) on request: [vuntum.com/fr/api-mcp#acces-pro](https://vuntum.com/fr/api-mcp#acces-pro).
+- Attribution is mandatory: every response carries an `attribution` field to reproduce when you quote the data.
 - Up to 50 results per call.
 - French by default, English with `locale: "en"`.
 - A missing value means Vuntum has not found a reliable source yet, not "no".
@@ -93,8 +96,10 @@ Documentation fixes, new client examples and bug reports are welcome:
 
 ## Licences
 
-- **Data:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Expected credit:
-  "Source: Vuntum (https://vuntum.com), CC BY 4.0 licence", with a link to the sheet concerned.
+- **Data:** [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) for versions from 24 October 2026
+  (earlier versions: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). Attribution is mandatory:
+  reproduce the `attribution` field of the response, with a link to the sheet concerned. Commercial use: pro access on request,
+  [vuntum.com/fr/api-mcp#acces-pro](https://vuntum.com/fr/api-mcp#acces-pro).
 - **Code in this repository** (examples, `server.json`): [MIT](LICENSE).
 
 Detail: [docs/LEGAL_AND_ATTRIBUTION.md](docs/LEGAL_AND_ATTRIBUTION.md). This repository holds the
