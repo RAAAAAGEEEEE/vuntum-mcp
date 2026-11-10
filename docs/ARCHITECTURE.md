@@ -26,8 +26,10 @@ and can run on your machine against the fictitious seed.
   holds every SQL statement, all parameterised. Another adapter (an API, files) can replace it
   without touching the tools.
 - **Quota and pro access** ([`server/src/access.ts`](../server/src/access.ts)). Only `tools/call`
-  counts: 100 a day per address (IPv6 per /64), 2,000 shared for known directories and AI assistant
-  connectors whose address is in their operator's published ranges. A pro key
+  counts: 100 a day per address (IPv6 per /64, per /48 once more than 32 /64 of the same /48 show
+  up in a day), 300 for known directories (recognised by name only), 2,000 for AI assistant
+  connectors whose address is in their operator's published ranges. One counter per address; full
+  tables forget their smallest counters instead of refusing newcomers. A pro key
   (`Authorization: Bearer vtm_...` or `X-Vuntum-Key`) is looked up by its SHA-256 digest through
   `public_api_key_lookup`, a `SECURITY DEFINER` function: the read-only role cannot read the
   `api_key` table. Unknown or revoked key: 403.

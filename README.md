@@ -63,11 +63,12 @@ Le code de [`server/src`](server/src) est celui qui tourne sur vuntum.com, sans 
 - **Quota par adresse, sur `tools/call` seulement** ([`access.ts`](server/src/access.ts)). Une
   adresse a droit à 100 appels d'outils par jour (jour UTC). Les autres messages du protocole
   (`initialize`, `tools/list`) ne comptent jamais : un annuaire qui vérifie que le serveur répond
-  ne reçoit jamais d'erreur 429. Une adresse IPv6 compte pour son préfixe /64 entier. Les
-  annuaires MCP connus et les connecteurs des assistants IA ont un quota partagé plus haut
-  (2 000 par jour). Un connecteur d'assistant n'y a droit que si son adresse figure dans la liste
-  officielle publiée par son éditeur ([`net/robot-ranges.ts`](server/src/net/robot-ranges.ts)) :
-  écrire « ChatGPT-User » dans un en-tête ne suffit pas.
+  ne reçoit jamais d'erreur 429. Une adresse IPv6 compte pour son préfixe /64 entier, puis pour
+  son /48 entier dès que plus de 32 /64 du même /48 se présentent dans la journée. Un connecteur
+  d'assistant IA a 2 000 appels par jour, seulement si son adresse figure dans la liste officielle
+  publiée par son éditeur ([`net/robot-ranges.ts`](server/src/net/robot-ranges.ts)) : écrire
+  « ChatGPT-User » dans un en-tête ne suffit pas. Les annuaires MCP connus, reconnus à leur seul
+  nom, ont 300 appels par jour.
 - **Accès pro par clé hachée en SHA-256** ([`data/api-keys.ts`](server/src/data/api-keys.ts)). La
   clé arrive par `Authorization: Bearer vtm_...` ou `X-Vuntum-Key`. La base ne garde que son
   empreinte SHA-256, lue par une fonction SQL : le rôle du serveur ne voit jamais la table des
@@ -214,11 +215,11 @@ The code in [`server/src`](server/src) is the code that runs on vuntum.com, with
 - **Quota per address, on `tools/call` only** ([`access.ts`](server/src/access.ts)). An address
   gets 100 tool calls per day (UTC day). The other protocol messages (`initialize`, `tools/list`)
   never count, so a directory that checks that the server is up never gets a 429. An IPv6 address
-  counts for its whole /64 prefix. Known MCP directories and the connectors of AI assistants get a
-  higher shared quota (2,000 a day). An assistant's connector only gets it when its address is in
+  counts for its whole /64 prefix, then for its whole /48 once more than 32 /64 of the same /48
+  show up in a day. The connector of an AI assistant gets 2,000 a day, only when its address is in
   the official list published by its operator
   ([`net/robot-ranges.ts`](server/src/net/robot-ranges.ts)): writing "ChatGPT-User" in a header is
-  not enough.
+  not enough. Known MCP directories, recognised by name only, get 300 a day.
 - **Pro access by a key hashed with SHA-256** ([`data/api-keys.ts`](server/src/data/api-keys.ts)).
   The key comes in `Authorization: Bearer vtm_...` or `X-Vuntum-Key`. The database only keeps its
   SHA-256 digest, read through an SQL function: the server's role never sees the key table. An

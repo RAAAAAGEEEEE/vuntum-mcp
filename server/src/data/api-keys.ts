@@ -51,7 +51,15 @@ export function presentedApiKey(headers: Record<string, string | string[] | unde
   return key === '' ? null : key;
 }
 
-/** Calls counted per bucket and per UTC day. In memory: a restart starts the day again, in the caller's favour. */
+/**
+ * Calls counted per bucket and per UTC day. In memory: a restart starts the day again, in the caller's favour.
+ *
+ * A full table (someone rotating addresses) no longer refuses every newcomer until midnight UTC
+ * (security review): the smallest counters, a tenth of the table, are
+ * forgotten instead. Rotating addresses creates counters of one or two calls, so those are the
+ * ones that go; a regular visitor's counter, larger, stays. A forgotten counter only starts its
+ * day again, in the caller's favour, as a restart does.
+ */
 export class DailyQuota {
   private readonly counts = new Map<string, number>();
   private day = '';
@@ -66,10 +74,21 @@ export class DailyQuota {
     }
     const used = this.counts.get(bucket) ?? 0;
     if (used + calls > limit) return { allowed: false, used };
-    // A full table means addresses are being rotated: newcomers wait for tomorrow.
-    if (used === 0 && this.counts.size >= this.maxBuckets) return { allowed: false, used };
+    if (used === 0 && this.counts.size >= this.maxBuckets) this.forgetSmallest();
     this.counts.set(bucket, used + calls);
     return { allowed: true, used: used + calls };
+  }
+
+  /** Counters kept today (tests, logs). */
+  get size(): number {
+    return this.counts.size;
+  }
+
+  private forgetSmallest(): void {
+    const drop = Math.max(1, Math.floor(this.maxBuckets / 10));
+    // Stable sort: among equal counters, the oldest go first.
+    const smallest = [...this.counts].sort((a, b) => a[1] - b[1]).slice(0, drop);
+    for (const [bucket] of smallest) this.counts.delete(bucket);
   }
 }
 

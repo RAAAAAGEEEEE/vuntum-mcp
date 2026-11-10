@@ -6,6 +6,15 @@ data (CC BY-NC 4.0) is not in this repository.
 
 ## [Unreleased]
 
+### Security
+
+- A directory name in `User-Agent` no longer opens 2,000 tool calls a day: directories get 300,
+  on the same counter as the address; assistant names without a published address list
+  (OpenAI-MCP, Gemini-User) get the public quota.
+- Full quota tables (daily and per minute) forget their smallest counters instead of refusing
+  every newcomer until midnight UTC; IPv6 is counted per /48 once more than 32 /64 of it show up
+  in a day (never for a verified assistant connector).
+
 ## [0.2.0] - 2026-11-10
 
 ### Added

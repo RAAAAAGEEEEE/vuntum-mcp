@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RobotRanges } from './net/robot-ranges.js';
-import { admit, DailyQuota, DIRECTORY_DAILY_TOOL_CALLS, isAssistantAgent, isDirectoryAgent, keyForLog, presentedKey, PUBLIC_DAILY_TOOL_CALLS, secondsToUtcMidnight, toolCallCount } from './access.js';
+import { admit, ASSISTANT_DAILY_TOOL_CALLS, DailyQuota, DIRECTORY_DAILY_TOOL_CALLS, isAssistantAgent, isDirectoryAgent, isVerifiedAssistant, keyForLog, presentedKey, PUBLIC_DAILY_TOOL_CALLS, quotaTier, secondsToUtcMidnight, toolCallCount } from './access.js';
 import { attributionFor, withTerms } from './terms.js';
 
 const call = (id = 1) => ({ jsonrpc: '2.0', id, method: 'tools/call', params: { name: 'get_robot', arguments: { slug: 'g1' } } });
@@ -61,6 +61,54 @@ describe('MCP free quota', () => {
     expect(DIRECTORY_DAILY_TOOL_CALLS).toBeGreaterThan(PUBLIC_DAILY_TOOL_CALLS);
   });
 
+  it('caps a directory name, which anyone can write, at a modest quota', async () => {
+    // `User-Agent: glama` used to open 2 000 calls a day; it now opens 300, below the assistants' quota.
+    expect(DIRECTORY_DAILY_TOOL_CALLS).toBe(300);
+    expect(DIRECTORY_DAILY_TOOL_CALLS).toBeLessThan(ASSISTANT_DAILY_TOOL_CALLS);
+    const quota = new DailyQuota();
+    const base = { bucket: '203.0.113.80', ip: '203.0.113.80', userAgent: 'glama', key: null, keys: noKeys, quota, ranges: OFFICIAL };
+    for (let i = 0; i < DIRECTORY_DAILY_TOOL_CALLS; i += 1) expect((await admit({ ...base, body: call(i) })).ok).toBe(true);
+    const refused = await admit({ ...base, body: call(999) });
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) expect(refused.error.body.error.message).toContain('300 tool calls per day');
+    // A directory name next to an assistant name it cannot back gets the directory quota, not the assistant one.
+    expect(isVerifiedAssistant('glama ChatGPT-User/1.0', '203.0.113.80', OFFICIAL)).toBe(false);
+    expect(quotaTier(null, 'glama ChatGPT-User/1.0', '203.0.113.80', OFFICIAL)).toBe('directory');
+  });
+
+  it('keeps one counter per address: a directory name raises the limit, it does not add calls', async () => {
+    const quota = new DailyQuota();
+    const base = { bucket: '203.0.113.81', ip: '203.0.113.81', key: null, keys: noKeys, quota, ranges: OFFICIAL };
+    for (let i = 0; i < PUBLIC_DAILY_TOOL_CALLS; i += 1) expect((await admit({ ...base, userAgent: 'python-httpx/0.27', body: call(i) })).ok).toBe(true);
+    let granted = 0;
+    for (let i = 0; i < DIRECTORY_DAILY_TOOL_CALLS; i += 1) if ((await admit({ ...base, userAgent: 'glama', body: call(i) })).ok) granted += 1;
+    expect(granted).toBe(DIRECTORY_DAILY_TOOL_CALLS - PUBLIC_DAILY_TOOL_CALLS);
+    const refused = await admit({ ...base, userAgent: 'glama', body: call() });
+    expect(refused).toMatchObject({ ok: false, tier: 'directory' });
+  });
+
+  it("puts a verified Claude-User from Anthropic's IPv6 /48 in the assistants' tier", () => {
+    const v6 = new RobotRanges({ fetchedDay: '2026-11-10', lists: { anthropic: { prefixes: ['2607:6bc0::/48'], published: '2026-11-03' } } });
+    expect(quotaTier(null, 'Claude-User', '2607:6bc0:0:2a::1', v6)).toBe('assistant');
+    expect(quotaTier(null, 'Claude-User', '2001:db8::1', v6)).toBe('public');
+    expect(quotaTier({ keyId: 'apk_1', tier: 'pro', dailyQuota: 500 }, 'glama', '2001:db8::1', v6)).toBe('pro');
+  });
+
+  it('gives the public quota to assistant names without an official address list', async () => {
+    for (const ua of ['OpenAI-MCP/1.0', 'Gemini-User']) {
+      expect(isAssistantAgent(ua)).toBe(true);
+      expect(isVerifiedAssistant(ua, '203.0.113.90', OFFICIAL)).toBe(false);
+      const quota = new DailyQuota();
+      let last;
+      for (let i = 0; i <= PUBLIC_DAILY_TOOL_CALLS; i += 1) {
+        last = await admit({ body: call(i), bucket: '203.0.113.90', ip: '203.0.113.90', userAgent: ua, key: null, keys: noKeys, quota, ranges: OFFICIAL });
+      }
+      expect(last, ua).toMatchObject({ ok: false });
+    }
+    // A real Claude-User from Anthropic's addresses keeps the assistants' quota.
+    expect(isVerifiedAssistant('Claude-User', '160.79.106.163', OFFICIAL)).toBe(true);
+  });
+
   it('gives the connectors of AI assistants, shared by all their users, the same higher quota', async () => {
     expect(isAssistantAgent('Claude-User')).toBe(true);
     expect(isAssistantAgent('Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot')).toBe(true);
@@ -92,12 +140,26 @@ describe('MCP free quota', () => {
     expect(unloaded).toMatchObject({ ok: false });
   });
 
-  it('refuses a new bucket when the table is full of live buckets (address rotation)', () => {
-    const quota = new DailyQuota(2);
-    expect(quota.take('a', 10, 1).allowed).toBe(true);
-    expect(quota.take('b', 10, 1).allowed).toBe(true);
-    expect(quota.take('c', 10, 1).allowed).toBe(false);
-    expect(quota.take('a', 10, 1).allowed).toBe(true);
+  it('forgets the smallest counters of a full table instead of refusing newcomers', () => {
+    const quota = new DailyQuota(10);
+    const now = new Date('2026-11-10T10:00:00Z');
+    // A regular visitor with 5 calls, then an address rotation filling the table with one call each.
+    for (let i = 0; i < 5; i += 1) quota.take('regular', 100, 1, now);
+    for (let i = 0; i < 9; i += 1) expect(quota.take(`rot-${i}`, 100, 1, now).allowed).toBe(true);
+    expect(quota.size).toBe(10);
+    // A newcomer still gets in; the table stays bounded.
+    expect(quota.take('newcomer', 100, 1, now).allowed).toBe(true);
+    expect(quota.size).toBe(10);
+    // The regular visitor's counter is kept: its quota is not reset by the rotation.
+    expect(quota.take('regular', 100, 1, now).used).toBe(6);
+    for (let i = 0; i < 1000; i += 1) quota.take(`rot2-${i}`, 100, 1, now);
+    expect(quota.size).toBeLessThanOrEqual(10);
+    expect(quota.take('regular', 100, 1, now).used).toBe(7);
+    // An exhausted bucket stays exhausted.
+    const full = new DailyQuota(10);
+    for (let i = 0; i < 3; i += 1) full.take('greedy', 3, 1, now);
+    for (let i = 0; i < 50; i += 1) full.take(`r-${i}`, 3, 1, now);
+    expect(full.take('greedy', 3, 1, now).allowed).toBe(false);
   });
 
   it('says how long until the quota starts again', () => {

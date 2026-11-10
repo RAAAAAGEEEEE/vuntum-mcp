@@ -7,8 +7,8 @@ import { loadEnv } from './env.js';
 import { getLogger } from './logger.js';
 import { createMcpServer } from './server.js';
 import { installGracefulShutdown } from './graceful-shutdown.js';
-import { checkBody, dropUnknownProtocolVersion, methodAllowed, rateKey, readBody } from './http-guard.js';
-import { admit, DailyQuota, KeyChecker, keyForLog, PRO_PER_MINUTE, PUBLIC_PER_MINUTE, presentedKey, readyRobotRanges, secondsToUtcMidnight } from './access.js';
+import { checkBody, dropUnknownProtocolVersion, Ipv6Grouping, methodAllowed, MinuteLimiter, rateKey, readBody } from './http-guard.js';
+import { admit, DailyQuota, isVerifiedAssistant, KeyChecker, keyForLog, PRO_PER_MINUTE, PUBLIC_PER_MINUTE, presentedKey, readyRobotRanges, secondsToUtcMidnight } from './access.js';
 
 /**
  * Remote transport for the public MCP server. Stateless: a fresh server and
@@ -20,23 +20,11 @@ import { admit, DailyQuota, KeyChecker, keyForLog, PRO_PER_MINUTE, PUBLIC_PER_MI
 const log = getLogger('mcp-http');
 const WINDOW_MS = 60_000;
 
-const MAX_BUCKETS = 50_000;
-
-const hits = new Map<string, { count: number; resetAt: number }>();
-
-function rateLimited(key: string, max: number, now = Date.now()): boolean {
-  // Forget the windows that are over, so the table cannot grow for ever.
-  if (hits.size > 5000) for (const [k, value] of hits) if (value.resetAt < now) hits.delete(k);
-  const entry = hits.get(key);
-  if (!entry || entry.resetAt < now) {
-    // Still full of live windows: someone is rotating addresses; newcomers wait.
-    if (hits.size >= MAX_BUCKETS) return true;
-    hits.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  entry.count += 1;
-  return entry.count > max;
-}
+// Full tables forget their smallest counters instead of refusing newcomers.
+const minute = new MinuteLimiter(50_000, WINDOW_MS);
+const rateLimited = (key: string, max: number): boolean => minute.limited(key, max);
+// IPv6 counted by /64, by /48 once a /48 shows more than 32 different /64 in a day.
+const ipv6 = new Ipv6Grouping();
 
 const quota = new DailyQuota();
 
@@ -73,12 +61,14 @@ async function main(): Promise<void> {
         res.end(JSON.stringify({ error: 'method not allowed' }));
         return;
       }
+      // A verified assistant's connector keeps its own /64: Anthropic's IPv6 range is a single /48.
+      const bucket = isVerifiedAssistant(header('user-agent'), ip) ? rateKey(ip) : ipv6.bucket(ip);
       // The key is never logged: only its prefix (`keyForLog`).
       const key = presentedKey(req.headers);
       // Keyed requests have their own, wider, bucket per address, so random keys
       // cannot make the server query the database without limit.
       const limited =
-        key === null ? rateLimited(rateKey(ip), PUBLIC_PER_MINUTE) : rateLimited(`keyed:${rateKey(ip)}`, PRO_PER_MINUTE);
+        key === null ? rateLimited(bucket, PUBLIC_PER_MINUTE) : rateLimited(`keyed:${bucket}`, PRO_PER_MINUTE);
       if (limited) {
         res.writeHead(429, { 'content-type': 'application/json', 'retry-after': '60' });
         res.end(JSON.stringify({ error: 'rate limit exceeded' }));
@@ -102,7 +92,7 @@ async function main(): Promise<void> {
         await readyRobotRanges();
         admission = await admit({
           body: verdict.body,
-          bucket: rateKey(ip),
+          bucket,
           ip,
           userAgent: header('user-agent'),
           key,
@@ -119,7 +109,7 @@ async function main(): Promise<void> {
         const headers: Record<string, string> = { 'content-type': 'application/json' };
         if (admission.error.status === 429) headers['retry-after'] = String(secondsToUtcMidnight());
         if (admission.error.status === 403 && key !== null) log.info({ key: keyForLog(key) }, 'api key refused');
-        if (admission.error.status === 429) log.info({ agent: header('user-agent')?.slice(0, 80) }, 'mcp daily quota reached');
+        if (admission.error.status === 429) log.info({ agent: header('user-agent')?.slice(0, 80), tier: admission.tier }, 'mcp daily quota reached');
         res.writeHead(admission.error.status, headers);
         res.end(JSON.stringify(admission.error.body));
         return;
@@ -134,6 +124,7 @@ async function main(): Promise<void> {
         log.info(
           {
             access: admission.access,
+            tier: admission.tier,
             agent: header('user-agent')?.slice(0, 80),
             ...(admission.grant ? { keyId: admission.grant.keyId } : {}),
           },

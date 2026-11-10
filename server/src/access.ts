@@ -1,4 +1,4 @@
-import { CachedRobotRanges, nameIsBelieved, type RobotRanges } from './net/robot-ranges.js';
+import { CachedRobotRanges, robotListOf, type RobotRanges } from './net/robot-ranges.js';
 import { apiKeyPrefix, DailyQuota, KeyChecker, presentedApiKey, secondsToUtcMidnight, type ApiKeyGrant } from './data/api-keys.js';
 
 export { DailyQuota, KeyChecker, secondsToUtcMidnight };
@@ -11,18 +11,25 @@ export const presentedKey = presentedApiKey;
  * counts: `initialize`, `tools/list` and the other protocol messages never do,
  * so the liveness probes of the MCP directories (measured on 24 and 25/10,
  * 3 950 POST a day, nearly all from them) are never answered 429 for checking
- * that the server is up. Directory agents and the connectors of AI assistants
- * named below get a higher daily quota of tool calls, with the same free
- * answers: an assistant's connector calls from a few addresses shared by all
- * its users (Claude-User from 160.79.106.x), and a quota per address would
- * cut the quoting of Vuntum by AI assistants, which is what the free access is for.
+ * that the server is up.
+ *
+ * The connectors of AI assistants get a higher daily quota of tool calls, with
+ * the same free answers: an assistant's connector calls from a few addresses
+ * shared by all its users (Claude-User from 160.79.106.x), and a quota per
+ * address would cut the quoting of Vuntum by AI assistants, which is what the
+ * free access is for. Only when the address is in the assistant's official
+ * list: a name alone is written by anyone, so OpenAI-MCP and
+ * Gemini-User, whose operators publish no list, get the public quota. The MCP
+ * directories cannot be checked by address either: their name gives a modest
+ * raise (300), enough for their tool tests, not a way around the public quota.
  *
  * Pro: a key (`Authorization: Bearer vtm_...` or `X-Vuntum-Key`), checked
  * against its hash; the key's own daily quota and a higher per-minute limit.
  */
 
 export const PUBLIC_DAILY_TOOL_CALLS = 100;
-export const DIRECTORY_DAILY_TOOL_CALLS = 2_000;
+export const ASSISTANT_DAILY_TOOL_CALLS = 2_000;
+export const DIRECTORY_DAILY_TOOL_CALLS = 300;
 export const PUBLIC_PER_MINUTE = 60;
 export const PRO_PER_MINUTE = 600;
 
@@ -49,7 +56,8 @@ export function isAssistantAgent(userAgent: string | undefined): boolean {
 /**
  * Official address lists of the assistants that publish one. A scanner writing
  * "ChatGPT-User" must not draw on the shared quota of the real connectors: a name outside its
- * official addresses, or before the lists are loaded, gets the public quota.
+ * official addresses, a name without an official list, or any name before the lists are loaded,
+ * gets the public quota.
  */
 let robotRanges: { ready(): Promise<void>; readonly ranges: RobotRanges | null } = new CachedRobotRanges();
 
@@ -67,7 +75,8 @@ export function isVerifiedAssistant(
   ip: string | undefined,
   ranges: RobotRanges | null = robotRanges.ranges,
 ): boolean {
-  return isAssistantAgent(userAgent) && nameIsBelieved(ranges, userAgent, ip);
+  if (!isAssistantAgent(userAgent) || robotListOf(userAgent) === null) return false;
+  return ranges?.verdict(userAgent, ip) === 'verified';
 }
 
 /** The JSON-RPC messages of a body that call a tool (the guard allows one message, alone or in a batch of one). */
@@ -130,9 +139,36 @@ export function keyRefused(id: string | number | null): RpcError {
   };
 }
 
+/** Which daily limit applies, written in the logs to see who reaches it. */
+export type QuotaTier = 'pro' | 'assistant' | 'directory' | 'public';
+
+const FREE_LIMITS: Record<Exclude<QuotaTier, 'pro'>, number> = {
+  assistant: ASSISTANT_DAILY_TOOL_CALLS,
+  directory: DIRECTORY_DAILY_TOOL_CALLS,
+  public: PUBLIC_DAILY_TOOL_CALLS,
+};
+
+/** A verified assistant first (a directory name cannot lower it), then a directory name, then the public quota. */
+export function quotaTier(
+  grant: ApiKeyGrant | null,
+  userAgent: string | undefined,
+  ip: string | undefined,
+  ranges: RobotRanges | null = robotRanges.ranges,
+): QuotaTier {
+  if (grant) return 'pro';
+  if (isVerifiedAssistant(userAgent, ip, ranges)) return 'assistant';
+  return isDirectoryAgent(userAgent) ? 'directory' : 'public';
+}
+
 export type Admission =
-  | { readonly ok: true; readonly access: 'public' | 'pro'; readonly grant: ApiKeyGrant | null; readonly toolCalls: number }
-  | { readonly ok: false; readonly error: RpcError };
+  | {
+      readonly ok: true;
+      readonly access: 'public' | 'pro';
+      readonly tier: QuotaTier;
+      readonly grant: ApiKeyGrant | null;
+      readonly toolCalls: number;
+    }
+  | { readonly ok: false; readonly tier?: QuotaTier; readonly error: RpcError };
 
 /**
  * The access a request gets: a presented key must be live (else 403, never a
@@ -156,15 +192,16 @@ export async function admit(input: {
   const grant = input.key === null ? null : await input.keys.check(input.key);
   if (input.key !== null && grant === null) return { ok: false, error: keyRefused(id) };
   const toolCalls = toolCallCount(input.body);
+  const ranges = input.ranges === undefined ? robotRanges.ranges : input.ranges;
+  const tier = quotaTier(grant, input.userAgent, input.ip, ranges);
   if (toolCalls > 0) {
-    const [bucket, limit] = grant
-      ? [`pro:${grant.keyId}`, grant.dailyQuota]
-      : isDirectoryAgent(input.userAgent) || isVerifiedAssistant(input.userAgent, input.ip, input.ranges === undefined ? robotRanges.ranges : input.ranges)
-        ? [`shared:${input.bucket}`, DIRECTORY_DAILY_TOOL_CALLS]
-        : [input.bucket, PUBLIC_DAILY_TOOL_CALLS];
+    // One counter per address for the free access, whatever the name: writing "glama" raises the
+    // address's limit to 300, it does not add 300 calls to the 100 already used.
+    const bucket = grant ? `pro:${grant.keyId}` : input.bucket;
+    const limit = grant ? grant.dailyQuota : FREE_LIMITS[tier as Exclude<QuotaTier, 'pro'>];
     if (!input.quota.take(bucket, limit, toolCalls, input.now).allowed) {
-      return { ok: false, error: quotaExceeded(id, limit) };
+      return { ok: false, tier, error: quotaExceeded(id, limit) };
     }
   }
-  return { ok: true, access: grant ? 'pro' : 'public', grant, toolCalls };
+  return { ok: true, access: grant ? 'pro' : 'public', tier, grant, toolCalls };
 }
