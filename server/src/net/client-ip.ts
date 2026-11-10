@@ -36,7 +36,9 @@ function clean(value: string | null | undefined): string {
 export function resolveClientIp(peer: string | undefined, headers: ForwardedHeaders): string {
   const socket = clean(peer) || 'unknown';
   if (socket === 'unknown' || !isProxyAddress(socket)) return socket;
-  const real = clean(headers.realIp);
+  // X-Real-IP is only believed when the operator says the proxy overwrites it (nginx does; Caddy, Traefik and most
+  // load balancers pass the client's own value through): TRUST_X_REAL_IP=1.
+  const real = process.env.TRUST_X_REAL_IP === '1' ? clean(headers.realIp) : '';
   if (real) return real;
   const hops = (headers.forwardedFor ?? '').split(',');
   return clean(hops[hops.length - 1]) || socket;

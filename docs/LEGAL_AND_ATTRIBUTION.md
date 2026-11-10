@@ -34,3 +34,9 @@ Quotes and source links returned by the tools belong to their authors. Vuntum re
 sourced evidence.
 
 Legal notice of the publisher: [vuntum.com/fr/mentions-legales](https://vuntum.com/fr/mentions-legales).
+
+## Texts shipped with the code
+
+The methodology and editorial-scope texts in `server/src/domain/` (`methodology-messages.ts`, `editorial-scope-data.ts`)
+are part of this repository and are released under the MIT licence with the code. The editorial content of vuntum.com
+(articles, news, robot overviews) is not in this repository and remains all rights reserved.

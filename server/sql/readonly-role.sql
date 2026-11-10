@@ -19,4 +19,5 @@ END
 $$;
 REVOKE ALL ON api_key FROM vuntum_mcp_ro;
 GRANT EXECUTE ON FUNCTION search_site(text, text, integer) TO vuntum_mcp_ro;
+REVOKE EXECUTE ON FUNCTION public_api_key_lookup(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public_api_key_lookup(text) TO vuntum_mcp_ro;

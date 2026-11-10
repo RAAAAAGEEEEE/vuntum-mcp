@@ -73,3 +73,10 @@ Expected last line: `OK: 20 tools, all read-only, get_robot answers with sourced
 Run on 8 October 2026 with Node.js v22.20.0.
 
 Next: [USAGE.md](USAGE.md). If something fails: [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+## Behind a reverse proxy
+
+The server reads the client address from the socket. Behind a proxy on a private address it uses the last hop of
+`X-Forwarded-For`. `X-Real-IP` is only trusted when you set `TRUST_X_REAL_IP=1`, and you should set it only if your
+proxy overwrites that header (nginx: `proxy_set_header X-Real-IP $remote_addr;`). Caddy, Traefik and most hosted load
+balancers pass the client's own value through: leave the variable unset with them, or anyone can pick their quota bucket.
