@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "vuntum-local": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/TO/vuntum-mcp/server/dist/server-stdio.js"],
+      "env": {
+        "DATABASE_URL": "postgres://vuntum_mcp_ro:local-demo-readonly-only@127.0.0.1:5432/vuntum"
+      }
+    }
+  }
+}

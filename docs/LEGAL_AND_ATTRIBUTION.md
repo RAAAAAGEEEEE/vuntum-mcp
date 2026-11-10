@@ -1,24 +1,32 @@
 # Legal and attribution
 
-## Data
-
-The data served by the MCP server is under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Expected credit:
-
-> Source: Vuntum (https://vuntum.com), CC BY 4.0 licence
-
-with a link to the sheet concerned (the `url` field returned for each robot).
-
 ## Code
 
-The code in this repository (examples, `server.json`, `glama.json`) is under the [MIT license](../LICENSE),
-copyright 2026 Vuntum.
+The code in this repository (server in [`server/`](../server/), SQL schema, demo seed, examples,
+`server.json`, `glama.json`) is under the [MIT license](../LICENSE), copyright 2026 Antoine / Vuntum.
 
-## Dependency
+## Data
 
-`@modelcontextprotocol/sdk` 1.30.0 (pinned in [`package.json`](../package.json)) is installed by
-`npm install`. Its license is in its own package; the Model Context Protocol is described on
-[modelcontextprotocol.io](https://modelcontextprotocol.io).
+The Vuntum data (robot sheets, prices, sources) is **not** in this repository. The file
+[`server/sql/seed.sql`](../server/sql/seed.sql) only holds fictitious robots ("Demo Robot A", B, C)
+with sources on example.com; it is under the MIT license like the rest of the code.
+
+The data served by `https://vuntum.com/mcp` is under
+[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) for the versions published since
+24 October 2026 (earlier versions: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
+Every answer carries the expected credit in its `attribution` field, for example:
+
+> Source: Vuntum, <link to the page concerned on vuntum.com>, CC BY-NC 4.0
+
+Reproduce it with the data, with its link. Commercial use needs the pro access:
+[vuntum.com/fr/api-mcp#acces-pro](https://vuntum.com/fr/api-mcp#acces-pro).
+
+## Dependencies
+
+The examples at the root use `@modelcontextprotocol/sdk` (pinned in [`package.json`](../package.json)).
+The server uses `@modelcontextprotocol/sdk`, `zod` and `postgres` (pinned in
+[`server/package.json`](../server/package.json)). Their licenses are in their own packages; the
+Model Context Protocol is described on [modelcontextprotocol.io](https://modelcontextprotocol.io).
 
 ## Third-party content
 

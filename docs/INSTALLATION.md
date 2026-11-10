@@ -26,7 +26,7 @@ Or in `.mcp.json`:
 }
 ```
 
-Tested on 3 October 2026: Claude Code lists the 16 tools and calls them.
+Tested on 3 October 2026: Claude Code lists the tools (16 at the time, 20 since) and calls them.
 
 ## ChatGPT
 
@@ -69,7 +69,7 @@ npm install
 npm run check
 ```
 
-Expected last line: `OK: 16 tools, all read-only, get_robot answers with sourced data.`
+Expected last line: `OK: 20 tools, all read-only, get_robot answers with sourced data.`
 Run on 8 October 2026 with Node.js v22.20.0.
 
 Next: [USAGE.md](USAGE.md). If something fails: [TROUBLESHOOTING.md](TROUBLESHOOTING.md).

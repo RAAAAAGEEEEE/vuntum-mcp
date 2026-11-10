@@ -1,12 +1,15 @@
 # Contributing
 
-Thanks for your interest. This repository contains client examples and the public description of the
-Vuntum MCP server. The server code is not here, so changes to the server's behavior or data cannot be
-made through a pull request.
+Thanks for your interest. This repository contains the source code of the Vuntum MCP server
+([`server/`](server/), MIT), client examples and the public description of the server. The Vuntum data
+is not here: changes to the data cannot be made through a pull request.
 
 ## Welcome
 
 - A fix or improvement to the documentation.
+- A fix or improvement to the server code in [`server/`](server/), with a test. Run
+  `npm ci && npm test && npm run build` in `server/` before sending it. Changes are reviewed before
+  they reach vuntum.com; a merge does not deploy anything.
 - A new client example (another language or MCP client), if it runs against `https://vuntum.com/mcp`
   and you ran it before sending it.
 - A bug report: a command from this repository that fails, a wrong tool name, a dead link.
@@ -25,7 +28,7 @@ npm install
 npm run check
 ```
 
-`npm run check` must print `OK: 16 tools, all read-only, get_robot answers with sourced data.`
+`npm run check` must print `OK: 20 tools, all read-only, get_robot answers with sourced data.`
 If you add or remove a tool in the documentation, update the `EXPECTED` list in
 [`examples/check.mjs`](examples/check.mjs) in the same pull request.
 

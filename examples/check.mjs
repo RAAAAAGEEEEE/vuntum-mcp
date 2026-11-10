@@ -9,6 +9,7 @@ const EXPECTED = [
   'get_robot_claims', 'get_robot_sources', 'get_robot_prices', 'get_robot_availability',
   'compare_robots', 'find_home_robots', 'find_robots_by_utility', 'find_robots_by_capability',
   'find_programmable_robots', 'get_recent_changes', 'search_open_source_projects',
+  'get_editorial_scope', 'get_humanoid_tracker', 'get_change_history', 'get_fact_sources',
 ];
 
 const client = new Client({ name: 'vuntum-mcp-check', version: '0.1.0' });

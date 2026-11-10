@@ -2,8 +2,9 @@
 
 ## Scope
 
-This repository contains client examples and the public description of a read-only server. The
-server itself runs on vuntum.com. Both are in scope for a report; see
+This repository contains the source code of a read-only server ([`server/`](server/)), client
+examples and the public description of the server, which runs on vuntum.com. All of them are in
+scope for a report; see
 [docs/PRIVACY_AND_SECURITY.md](docs/PRIVACY_AND_SECURITY.md) for the design.
 
 ## Report a vulnerability

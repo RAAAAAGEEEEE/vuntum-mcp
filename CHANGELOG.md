@@ -1,17 +1,39 @@
 # Changelog
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This repository holds the
-public description of the Vuntum MCP server and client examples; the server itself runs on
-vuntum.com and is not versioned here.
+source code of the Vuntum MCP server (MIT), its public description and client examples. The Vuntum
+data (CC BY-NC 4.0) is not in this repository.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-10
+
 ### Added
 
-- `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` and the detailed documents in [`docs/`](docs/).
+- Source code of the server in [`server/`](server/), under the MIT license: 20 read-only tools,
+  stdio and Streamable HTTP transports, quota on `tools/call` only, pro access by SHA-256 hashed
+  key, attribution and license in every answer, HTTP guard, graceful shutdown.
+- Data access behind the `VuntumReader` interface, with a PostgreSQL adapter (`DATABASE_URL`,
+  read-only role).
+- `server/sql/schema.sql`, `server/sql/readonly-role.sql` and `server/sql/seed.sql` (three
+  fictitious robots, sources on example.com; no Vuntum data).
+- Tests on an in-memory PostgreSQL (PGlite): `npm ci && npm test && npm run build` in `server/`.
+- Docker Compose demo (PostgreSQL + seed + server, bound to 127.0.0.1) and configurations for
+  Claude Desktop, Claude Code and Cursor in [`examples/local/`](examples/local/).
 
 ### Changed
 
+- `README.md` rewritten with a full French section and a full English section.
+- Documentation updated from 16 to 20 tools, the number the public server lists.
+- `LICENSE`: copyright holder "Antoine / Vuntum".
+- Examples: `@modelcontextprotocol/sdk` 1.30.0 to 1.32.2 and lock file refreshed (`npm audit`: 0
+  vulnerabilities); `examples/check.mjs` expects the 20 tools.
+- Data license stated as CC BY-NC 4.0 (versions from 24 October 2026; earlier versions CC BY 4.0),
+  daily quota and mandatory attribution documented.
+
+### Earlier, not released separately
+
+- `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` and the detailed documents in [`docs/`](docs/).
 - `README.md` shortened: client setup, tool reference and limits moved to `docs/`.
 
 ## [0.1.0] - 2026-10-03

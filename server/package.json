@@ -1,0 +1,29 @@
+{
+  "name": "vuntum-mcp-server",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Source code of the Vuntum MCP server: read-only tools over a PostgreSQL database of robots, with sources, dates and levels of evidence.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "tsc -p tsconfig.test.json && vitest run",
+    "start": "node dist/server-stdio.js",
+    "start:http": "node dist/server-http.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "postgres": "3.4.9",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@types/node": "22.20.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  }
+}

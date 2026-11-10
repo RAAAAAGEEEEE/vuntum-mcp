@@ -16,8 +16,10 @@
 - **Read-only:** nothing can be written, corrected or reported through the server.
 - **Not for bulk use.** Use the REST API and the full export (OpenAPI 3.1, CSV, JSON Lines) described
   on [vuntum.com/fr/donnees](https://vuntum.com/fr/donnees).
-- **This repository** holds examples only. The server code is not here, and the examples need
-  Node.js 20 or later.
+- **This repository** holds the server code and the examples, not the Vuntum data. A local server
+  only serves the fictitious seed (three demo robots) or data you load yourself. Node.js 20 or later.
+- **Local search** is simpler than on vuntum.com: all words, then some words; no close-spelling
+  match (`pg_trgm`).
 
 The limits above come from the server's public description; the examples do not enforce them.
 Related: [TROUBLESHOOTING.md](TROUBLESHOOTING.md), [USAGE.md](USAGE.md).

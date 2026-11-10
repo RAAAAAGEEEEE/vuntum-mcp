@@ -31,6 +31,10 @@ The exact input schemas are served by the server itself (`tools/list`).
 | `find_programmable_robots` | Robots with a public SDK, Python, C++, ROS, MCP and similar, on deterministic criteria. | `{"limit": 10}` |
 | `get_recent_changes` | Public change log: publications, corrections, price changes. | `{"limit": 20}` |
 | `search_open_source_projects` | Open-source robotics repositories referenced by Vuntum. | `{"query": "ros"}` |
+| `get_editorial_scope` | What Vuntum follows first, follows less and no longer follows, with the date of the last update. | `{}` |
+| `get_humanoid_tracker` | Dated stage of each humanoid (announced, pre-order, on sale, at a customer), with source and the gap with the promised date. | `{"stage": "on_sale"}` |
+| `get_change_history` | Pro key only. Full public history of changes, filterable by robot, kind and dates, paged. | `{"slug": "unitree-g1", "from": "2026-01-01"}` |
+| `get_fact_sources` | Pro key only. Every accepted observation of each fact of a robot, outdated values included. | `{"slug": "unitree-g1", "predicate": "price.msrp"}` |
 
 Utility and capability keys are in French, as the server defines them.
 
@@ -75,10 +79,10 @@ Data answers include a short `disclaimer`: "not disclosed" means the information
 
 ```bash
 npm run quickstart -- "unitree"   # lists the tools, then searches
-npm run check                     # checks the 16 tools and a sourced answer
+npm run check                     # checks the 20 tools and a sourced answer
 ```
 
-Output of `npm run quickstart -- "unitree"` on 8 October 2026 (first lines):
+Output of `npm run quickstart -- "unitree"` on 8 October 2026, when the server had 16 tools (first lines):
 
 ```
 16 tools: get_methodology, search_robots, search_site, get_article, ...

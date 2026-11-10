@@ -1,0 +1,46 @@
+# LOCAL DEMO ONLY: PostgreSQL loaded with the FICTITIOUS seed (sql/seed.sql)
+# and the MCP server over HTTP on http://127.0.0.1:3001/mcp.
+#
+# The two passwords below are placeholders for this demo: the database only
+# listens on 127.0.0.1 and only holds fictitious robots. Never reuse them, and
+# never expose this file as is on a network.
+#
+#   docker compose up -d --build
+#   curl http://127.0.0.1:3001/health
+name: vuntum-mcp-demo
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: vuntum
+      POSTGRES_USER: vuntum_owner
+      POSTGRES_PASSWORD: local-demo-owner-only # LOCAL DEMO ONLY
+      MCP_READONLY_PASSWORD: local-demo-readonly-only # LOCAL DEMO ONLY
+    volumes:
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      - ./sql/seed.sql:/docker-entrypoint-initdb.d/20-seed.sql:ro
+      - ./docker/initdb/30-readonly-role.sh:/docker-entrypoint-initdb.d/30-readonly-role.sh:ro
+      - ./sql/readonly-role.sql:/vuntum-sql/readonly-role.sql:ro
+    ports:
+      # For the stdio mode, run from your machine against this database.
+      - "127.0.0.1:${VUNTUM_DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vuntum_owner -d vuntum"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  mcp:
+    build: .
+    environment:
+      # The server connects with the read-only role, never as the owner.
+      DATABASE_URL: postgres://vuntum_mcp_ro:local-demo-readonly-only@db:5432/vuntum # LOCAL DEMO ONLY
+      VUNTUM_PUBLIC_URL: https://vuntum.com
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "3001"
+    ports:
+      - "127.0.0.1:${VUNTUM_MCP_PORT:-3001}:3001"
+    depends_on:
+      db:
+        condition: service_healthy
