@@ -1,5 +1,7 @@
 # Vuntum MCP server
 
+[![Vuntum MCP server](https://glama.ai/mcp/servers/RAAAAAGEEEEE/vuntum-mcp/badges/score.svg)](https://glama.ai/mcp/servers/RAAAAAGEEEEE/vuntum-mcp)
+
 [Français](#français) · [English](#english)
 
 ---
