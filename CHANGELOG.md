@@ -6,6 +6,14 @@ data (CC BY-NC 4.0) is not in this repository.
 
 ## [Unreleased]
 
+### Added
+
+- `DATABASE_URL=demo` starts the stdio server on an in-memory database with the three fictitious
+  robots of `sql/seed.sql`, and a root `Dockerfile` runs it that way (no network, no secret), so that
+  MCP directories such as Glama can build and inspect the server.
+- Every tool parameter now has a description; the shortest tool descriptions say what they return
+  and which sibling tool to use instead.
+
 ### Security
 
 - A directory name in `User-Agent` no longer opens 2,000 tool calls a day: directories get 300,

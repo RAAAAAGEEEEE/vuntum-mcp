@@ -120,6 +120,10 @@ npm run build
 DATABASE_URL=postgres://vuntum_mcp_ro:local-demo-readonly-only@127.0.0.1:5432/vuntum node dist/server-stdio.js
 ```
 
+**Sans base ni Docker Compose** : `DATABASE_URL=demo` charge en mémoire les trois robots fictifs de
+`server/sql/seed.sql` (rien d'autre à installer, aucune donnée Vuntum). Même chose en conteneur, depuis la
+racine du dépôt : `docker build -t vuntum-mcp-demo .` puis `docker run -i --rm vuntum-mcp-demo` (stdio).
+
 **Brancher un client** : configurations prêtes pour Claude Desktop, Claude Code et Cursor dans
 [`examples/local/`](examples/local/). Avec Claude Code, en HTTP :
 
@@ -269,6 +273,10 @@ npm ci
 npm run build
 DATABASE_URL=postgres://vuntum_mcp_ro:local-demo-readonly-only@127.0.0.1:5432/vuntum node dist/server-stdio.js
 ```
+
+**Without a database or Docker Compose**: `DATABASE_URL=demo` loads the three fictitious robots of
+`server/sql/seed.sql` in memory (nothing else to install, no Vuntum data). Same in a container, from the
+root of the repository: `docker build -t vuntum-mcp-demo .` then `docker run -i --rm vuntum-mcp-demo` (stdio).
 
 **Connect a client**: ready configurations for Claude Desktop, Claude Code and Cursor in
 [`examples/local/`](examples/local/). With Claude Code, over HTTP:

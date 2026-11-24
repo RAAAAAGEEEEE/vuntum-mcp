@@ -15,17 +15,37 @@ import { withTerms } from './terms.js';
  * implementation only reads the `public_*` relations with a read-only role.
  */
 
-const READ_ONLY = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: false,
+};
 
 // Le titre est répété dans les annotations : l'annuaire des connecteurs Claude le lit à cet endroit.
-const readOnlyTool = (title: string) => ({ title, annotations: { ...READ_ONLY, title } });
+const readOnlyTool = (title: string) => ({
+  title,
+  annotations: { ...READ_ONLY, title },
+});
 
-const slug = z.string().min(2).max(96).describe('URL identifier of the robot sheet, for example "g1".');
+const slug = z
+  .string()
+  .min(2)
+  .max(96)
+  .describe('URL identifier of the robot sheet, for example "g1".');
 const locale = z
   .enum(['fr', 'en'])
   .optional()
-  .describe('Language of the texts and addresses: "fr" (default) or "en". The figures and the sources are identical.');
-const limit = z.number().int().min(1).max(50).optional().describe('Maximum number of results (50 max).');
+  .describe(
+    'Language of the texts and addresses: "fr" (default) or "en". The figures and the sources are identical.',
+  );
+const limit = z
+  .number()
+  .int()
+  .min(1)
+  .max(50)
+  .optional()
+  .describe('Maximum number of results (50 max).');
 
 export const SERVER_NAME = 'vuntum';
 export const SERVER_VERSION = '0.1.0';
@@ -54,19 +74,30 @@ export function createMcpServer(ctx: ToolContext): McpServer {
   );
 
   // Every answer carries `attribution` and `license`, free or pro.
-  const json = (payload: unknown, locale: ToolLocale | undefined, paths: readonly string[] = []) => ({
+  const json = (
+    payload: unknown,
+    locale: ToolLocale | undefined,
+    paths: readonly string[] = [],
+  ) => ({
     content: [
       {
         type: 'text' as const,
         text: JSON.stringify(
-          withTerms(payload, { baseUrl: ctx.baseUrl, locale: locale ?? 'fr', access: ctx.access ?? 'public', paths }),
+          withTerms(payload, {
+            baseUrl: ctx.baseUrl,
+            locale: locale ?? 'fr',
+            access: ctx.access ?? 'public',
+            paths,
+          }),
           null,
           2,
         ),
       },
     ],
   });
-  const robotPage = (slug: string, locale: ToolLocale | undefined) => [tools.pathFor('robot', slug, locale ?? 'fr')];
+  const robotPage = (slug: string, locale: ToolLocale | undefined) => [
+    tools.pathFor('robot', slug, locale ?? 'fr'),
+  ];
 
   server.registerTool(
     'get_methodology',
@@ -102,7 +133,17 @@ export function createMcpServer(ctx: ToolContext): McpServer {
         'Full-text search over the published robot sheets: accents ignored, word starts, ' +
         'synonyms, close spelling, ranked by relevance. `matchQuality` says whether all the words, ' +
         'some of them or a close spelling were found. `locale: "fr"` for French texts and addresses.',
-      inputSchema: { query: z.string().min(2).max(120), limit, locale },
+      inputSchema: {
+        query: z
+          .string()
+          .min(2)
+          .max(120)
+          .describe(
+            'Words to look for in the robot sheets, for example "humanoid kitchen" or "Unitree G1" (2 to 120 characters).',
+          ),
+        limit,
+        locale,
+      },
     },
     async (args) => json(await tools.searchRobots(ctx, args), args.locale),
   );
@@ -116,8 +157,18 @@ export function createMcpServer(ctx: ToolContext): McpServer {
         'Can be filtered by type. Returns the type, title, summary and address of each result. ' +
         '`locale: "fr"` for French.',
       inputSchema: {
-        query: z.string().min(2).max(120),
-        types: z.array(z.enum(['robot', 'manufacturer', 'article'])).max(3).optional(),
+        query: z
+          .string()
+          .min(2)
+          .max(120)
+          .describe(
+            'Words to look for in robots, manufacturers and articles (2 to 120 characters).',
+          ),
+        types: z
+          .array(z.enum(['robot', 'manufacturer', 'article']))
+          .max(3)
+          .optional()
+          .describe('Keep only these kinds of results. All three when omitted.'),
         limit,
         locale,
       },
@@ -135,7 +186,9 @@ export function createMcpServer(ctx: ToolContext): McpServer {
       inputSchema: { slug, locale },
     },
     async (args) =>
-      json(await tools.getArticle(ctx, args), args.locale, [tools.pathFor('article', args.slug, args.locale ?? 'fr')]),
+      json(await tools.getArticle(ctx, args), args.locale, [
+        tools.pathFor('article', args.slug, args.locale ?? 'fr'),
+      ]),
   );
 
   server.registerTool(
@@ -147,7 +200,8 @@ export function createMcpServer(ctx: ToolContext): McpServer {
         'availability, sources, product identifiers (`identifiers`: ASIN per Amazon marketplace, GTIN, manufacturer part number). `locale: "fr"` for French.',
       inputSchema: { slug, locale },
     },
-    async (args) => json(await tools.getRobot(ctx, args), args.locale, robotPage(args.slug, args.locale)),
+    async (args) =>
+      json(await tools.getRobot(ctx, args), args.locale, robotPage(args.slug, args.locale)),
   );
 
   server.registerTool(
@@ -155,40 +209,65 @@ export function createMcpServer(ctx: ToolContext): McpServer {
     {
       ...readOnlyTool('Robot claims'),
       description:
-        'All the validated claims of a robot, with evidence, source and quote. `locale: "fr"` for French values.',
-      inputSchema: { slug, predicate: z.string().max(80).optional(), locale },
+        'All the validated claims (facts) of one robot sheet: value, level of evidence, source, date and quote. ' +
+        'Use `get_robot` for the summary sheet, this tool for every fact; `predicate` narrows to one fact. `locale: "fr"` for French values.',
+      inputSchema: {
+        slug,
+        predicate: z
+          .string()
+          .max(80)
+          .optional()
+          .describe(
+            'Keep only one fact, by its key, for example "price.msrp" or "dimensions.height". All facts when omitted.',
+          ),
+        locale,
+      },
     },
-    async (args) => json(await tools.getRobotClaims(ctx, args), args.locale, robotPage(args.slug, args.locale)),
+    async (args) =>
+      json(await tools.getRobotClaims(ctx, args), args.locale, robotPage(args.slug, args.locale)),
   );
 
   server.registerTool(
     'get_robot_sources',
     {
       ...readOnlyTool('Robot sources'),
-      description: 'Sources behind the published claims of a robot. `locale: "fr"` for French source names.',
+      description:
+        'Sources behind the published claims of one robot: name, address, kind (manufacturer, independent media, marketplace, research lab) and date read. ' +
+        'Use it to cite or check where a value comes from. `locale: "fr"` for French source names.',
       inputSchema: { slug, locale },
     },
-    async (args) => json(await tools.getRobotSources(ctx, args), args.locale, robotPage(args.slug, args.locale)),
+    async (args) =>
+      json(await tools.getRobotSources(ctx, args), args.locale, robotPage(args.slug, args.locale)),
   );
 
   server.registerTool(
     'get_robot_prices',
     {
       ...readOnlyTool('Robot prices'),
-      description: 'Observed prices by market, price type and date. `locale: "fr"` for French notes.',
+      description:
+        'Observed prices of one robot by market (country), price type (list price, street price, preorder deposit, subscription, quote only) and date, each with its source. ' +
+        'Vuntum sells nothing: these are prices seen at the manufacturer or retailers. `locale: "fr"` for French notes.',
       inputSchema: { slug, locale },
     },
-    async (args) => json(await tools.getRobotPrices(ctx, args), args.locale, robotPage(args.slug, args.locale)),
+    async (args) =>
+      json(await tools.getRobotPrices(ctx, args), args.locale, robotPage(args.slug, args.locale)),
   );
 
   server.registerTool(
     'get_robot_availability',
     {
       ...readOnlyTool('Robot availability'),
-      description: 'Availability state by market, with observation date. `locale: "fr"` for French notes.',
+      description:
+        'Whether one robot can be bought, preordered or only announced, by market (country), with the date it was observed and its source. ' +
+        '`locale: "fr"` for French notes.',
       inputSchema: { slug, locale },
     },
-    async (args) => json(await tools.getRobotAvailability(ctx, args), args.locale, robotPage(args.slug, args.locale)),
+    async (args) =>
+      json(
+        await tools.getRobotAvailability(ctx, args),
+        args.locale,
+        robotPage(args.slug, args.locale),
+      ),
   );
 
   server.registerTool(
@@ -197,7 +276,15 @@ export function createMcpServer(ctx: ToolContext): McpServer {
       ...readOnlyTool('Humanoid tracker'),
       description:
         'Dated state of each humanoid robot: announced, pre-order, on sale, at a customer, in France, each with its date and source page, and the gap with the date the maker promised. A stage set to null is not established by a dated public source: it is not a "no". `stage` keeps the robots whose furthest stage it is. `locale: "fr"` for French notes.',
-      inputSchema: { stage: z.enum(['announced', 'preorder', 'on_sale', 'customer']).optional(), locale },
+      inputSchema: {
+        stage: z
+          .enum(['announced', 'preorder', 'on_sale', 'customer'])
+          .optional()
+          .describe(
+            'Keep only the humanoids at this stage of commercialisation. All stages when omitted.',
+          ),
+        locale,
+      },
     },
     async (args) => json(await tools.getHumanoidTracker(ctx, args), args.locale),
   );
@@ -210,10 +297,23 @@ export function createMcpServer(ctx: ToolContext): McpServer {
         'Comparison of 2 to 4 published robots on the columns of the Vuntum comparison. Each row says ' +
         'whether the values differ (`differs`); `differingPredicates` lists what sets the robots apart, ' +
         '`missingByRobot` what is not disclosed. `locale: "fr"` for French.',
-      inputSchema: { slugs: z.array(slug).min(2).max(4), locale },
+      inputSchema: {
+        slugs: z
+          .array(slug)
+          .min(2)
+          .max(4)
+          .describe(
+            'URL identifiers of the 2 to 4 robot sheets to compare, for example ["g1", "h1"].',
+          ),
+        locale,
+      },
     },
     async (args) =>
-      json(await tools.compareRobots(ctx, args), args.locale, args.slugs.flatMap((s) => robotPage(s, args.locale))),
+      json(
+        await tools.compareRobots(ctx, args),
+        args.locale,
+        args.slugs.flatMap((s) => robotPage(s, args.locale)),
+      ),
   );
 
   server.registerTool(
@@ -221,7 +321,8 @@ export function createMcpServer(ctx: ToolContext): McpServer {
     {
       ...readOnlyTool('Robots for the home'),
       description:
-        'Robots with a validated claim that they handle household tasks. `locale: "fr"` for French.',
+        'Published robots with a validated, sourced claim that they handle household tasks. ' +
+        'For one precise utility use `find_robots_by_utility`. `locale: "fr"` for French.',
       inputSchema: { limit, locale },
     },
     async (args) => json(await tools.findHomeRobots(ctx, args), args.locale),
@@ -234,7 +335,13 @@ export function createMcpServer(ctx: ToolContext): McpServer {
       description:
         `Published robots that have a given utility (the keys are the site's French slugs): ${robotUtilities.join(', ')}. ` +
         'A robot often has several (`utilities` field of each sheet). `locale: "en"` gives the English label and page.',
-      inputSchema: { utility: robotUtilitySchema, limit, locale },
+      inputSchema: {
+        utility: robotUtilitySchema.describe(
+          'One utility key from the list above, for example "menage".',
+        ),
+        limit,
+        locale,
+      },
     },
     async (args) => json(await tools.findRobotsByUtility(ctx, args), args.locale),
   );
@@ -247,7 +354,17 @@ export function createMcpServer(ctx: ToolContext): McpServer {
         `Published robots with a validated claim behind each requested capability: ${robotCapabilities.join(', ')}. ` +
         'Never inferred from a category: each capability returns the claim, its source and its level of evidence. ' +
         '`locale: "fr"` for French.',
-      inputSchema: { capabilities: z.array(robotCapabilitySchema).min(1).max(9), limit, locale },
+      inputSchema: {
+        capabilities: z
+          .array(robotCapabilitySchema)
+          .min(1)
+          .max(9)
+          .describe(
+            'Capabilities that every returned robot must have demonstrated (1 to 9, from the list above).',
+          ),
+        limit,
+        locale,
+      },
     },
     async (args) => json(await tools.findRobotsByCapability(ctx, args), args.locale),
   );
@@ -257,7 +374,8 @@ export function createMcpServer(ctx: ToolContext): McpServer {
     {
       ...readOnlyTool('Programmable robots'),
       description:
-        'Robots with a public SDK, Python API, ROS or MCP, by deterministic criteria. `locale: "fr"` for French.',
+        'Published robots that developers can program: public SDK, Python API, ROS or MCP, each with its source. ' +
+        'Selected by fixed rules, never guessed by a model. `locale: "fr"` for French.',
       inputSchema: { limit, locale },
     },
     async (args) => json(await tools.findProgrammableRobots(ctx, args), args.locale),
@@ -268,7 +386,8 @@ export function createMcpServer(ctx: ToolContext): McpServer {
     {
       ...readOnlyTool('Recent changes'),
       description:
-        'Public change log: publications, corrections, price changes. `locale: "fr"` for French sentences.',
+        'The latest public changes, newest first: new sheets, corrections, price and status changes, each with its date and page. ' +
+        'For a date range or paging use `get_change_history`. `locale: "fr"` for French sentences.',
       inputSchema: { limit, locale },
     },
     async (args) => json(await tools.getRecentChanges(ctx, args), args.locale),
@@ -284,11 +403,35 @@ export function createMcpServer(ctx: ToolContext): McpServer {
         'Paged with `offset`; `locale: "fr"` for French sentences. Without a pro key the answer points to https://vuntum.com/en/entreprise#demande.',
       inputSchema: {
         slug: z.string().max(120).optional().describe('Robot slug to filter on.'),
-        kinds: z.array(z.string().max(40)).max(10).optional().describe('e.g. price_changed, availability_changed, value_changed.'),
-        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        limit: z.number().int().min(1).max(200).optional(),
-        offset: z.number().int().min(0).max(1_000_000).optional(),
+        kinds: z
+          .array(z.string().max(40))
+          .max(10)
+          .optional()
+          .describe('e.g. price_changed, availability_changed, value_changed.'),
+        from: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .describe('First day included, as YYYY-MM-DD (UTC).'),
+        to: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional()
+          .describe('Last day included, as YYYY-MM-DD (UTC).'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe('Maximum number of changes (100 by default, 200 max).'),
+        offset: z
+          .number()
+          .int()
+          .min(0)
+          .max(1_000_000)
+          .optional()
+          .describe('Number of changes to skip, to read the next page.'),
         locale,
       },
     },
@@ -303,9 +446,20 @@ export function createMcpServer(ctx: ToolContext): McpServer {
         'PRO KEY ONLY. For one robot (`slug`), every accepted observation of each fact (same predicate, same conditions): ' +
         'all the sources that state it, replaced and outdated values included, each with its source, dates and level of evidence. ' +
         '`predicate` narrows to one fact (e.g. price.msrp). `locale: "fr"` for French values. Without a pro key the answer points to https://vuntum.com/en/entreprise#demande.',
-      inputSchema: { slug, predicate: z.string().max(80).optional(), locale },
+      inputSchema: {
+        slug,
+        predicate: z
+          .string()
+          .max(80)
+          .optional()
+          .describe(
+            'Keep only one fact, by its key, for example "price.msrp" or "dimensions.height". All facts when omitted.',
+          ),
+        locale,
+      },
     },
-    async (args) => json(await tools.getFactSources(ctx, args), args.locale, robotPage(args.slug, args.locale)),
+    async (args) =>
+      json(await tools.getFactSources(ctx, args), args.locale, robotPage(args.slug, args.locale)),
   );
 
   server.registerTool(
@@ -315,7 +469,17 @@ export function createMcpServer(ctx: ToolContext): McpServer {
       description:
         'Open source repositories related to robotics listed by Vuntum. No English description is written ' +
         'for a repository: with `locale: "en"` only the repository\'s own words are returned.',
-      inputSchema: { query: z.string().max(120).optional(), limit, locale },
+      inputSchema: {
+        query: z
+          .string()
+          .max(120)
+          .optional()
+          .describe(
+            'Words to look for in the project names and descriptions, for example "ROS 2". All projects when omitted.',
+          ),
+        limit,
+        locale,
+      },
     },
     async (args) => json(await tools.searchOpenSourceProjects(ctx, args), args.locale),
   );
