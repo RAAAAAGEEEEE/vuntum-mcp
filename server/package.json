@@ -1,6 +1,6 @@
 {
   "name": "vuntum-mcp-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Source code of the Vuntum MCP server: read-only tools over a PostgreSQL database of robots, with sources, dates and levels of evidence.",
   "license": "MIT",

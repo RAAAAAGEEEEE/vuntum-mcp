@@ -6,6 +6,8 @@ data (CC BY-NC 4.0) is not in this repository.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-24
+
 ### Added
 
 - `DATABASE_URL=demo` starts the stdio server on an in-memory database with the three fictitious
