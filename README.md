@@ -46,7 +46,7 @@ claude mcp add --transport http vuntum https://vuntum.com/mcp
 
 Autres clients (claude.ai, Claude Desktop, ChatGPT, Cursor, VS Code) :
 [docs/INSTALLATION.md](docs/INSTALLATION.md). Pour vérifier qu'il répond, à la racine du dépôt :
-`npm install && npm run check` (sortie attendue : `OK: 20 tools, all read-only, get_robot answers
+`npm install && npm run check` (sortie attendue : `OK: 32 tools, all read-only, get_robot answers
 with sourced data.`).
 
 - Gratuit : 100 appels d'outils par jour et par adresse IP, puis erreur HTTP 429. `initialize` et
@@ -54,7 +54,7 @@ with sourced data.`).
 - Attribution obligatoire : chaque réponse porte un champ `attribution` à reprendre avec les données.
 - Usage commercial : accès pro sur demande,
   [vuntum.com/fr/api-mcp#acces-pro](https://vuntum.com/fr/api-mcp#acces-pro).
-- Lecture seule : 20 outils, tous annotés `readOnlyHint: true`.
+- Lecture seule : 32 outils, tous annotés `readOnlyHint: true`.
 - Textes en français par défaut, en anglais avec `locale: "en"`. 50 résultats au plus par appel.
 - Nom dans le registre MCP officiel : `com.vuntum/mcp`.
 
@@ -202,7 +202,7 @@ claude mcp add --transport http vuntum https://vuntum.com/mcp
 
 Other clients (claude.ai, Claude Desktop, ChatGPT, Cursor, VS Code):
 [docs/INSTALLATION.md](docs/INSTALLATION.md). To check that it answers, at the root of the
-repository: `npm install && npm run check` (expected output: `OK: 20 tools, all read-only,
+repository: `npm install && npm run check` (expected output: `OK: 32 tools, all read-only,
 get_robot answers with sourced data.`).
 
 - Free: 100 tool calls per day per IP address, then HTTP 429. `initialize` and `tools/list` never
@@ -210,7 +210,7 @@ get_robot answers with sourced data.`).
 - Attribution is mandatory: every response carries an `attribution` field to reproduce with the data.
 - Commercial use: pro access on request,
   [vuntum.com/fr/api-mcp#acces-pro](https://vuntum.com/fr/api-mcp#acces-pro).
-- Read-only: 20 tools, all annotated `readOnlyHint: true`.
+- Read-only: 32 tools, all annotated `readOnlyHint: true`.
 - Texts in French by default, in English with `locale: "en"`. At most 50 results per call.
 - Name in the official MCP registry: `com.vuntum/mcp`.
 

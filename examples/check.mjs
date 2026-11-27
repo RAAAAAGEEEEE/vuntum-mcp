@@ -10,6 +10,9 @@ const EXPECTED = [
   'compare_robots', 'find_home_robots', 'find_robots_by_utility', 'find_robots_by_capability',
   'find_programmable_robots', 'get_recent_changes', 'search_open_source_projects',
   'get_editorial_scope', 'get_humanoid_tracker', 'get_change_history', 'get_fact_sources',
+  'get_events', 'get_corrections', 'get_competition_results', 'get_company_figures',
+  'get_integrators', 'get_component_suppliers', 'get_guides', 'get_authors', 'get_glossary',
+  'get_rankings', 'get_observatory', 'get_upcoming_releases',
 ];
 
 const client = new Client({ name: 'vuntum-mcp-check', version: '0.1.0' });

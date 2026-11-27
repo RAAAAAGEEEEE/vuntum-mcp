@@ -6,6 +6,20 @@ import { listProgrammableRobots } from './programming.js';
 import { listRobotIdentifiers } from './identifiers.js';
 import { loadHumanoidTracker } from './humanoid-tracker.js';
 import { lookupApiKey } from './api-keys.js';
+import { loadCatalogueSnapshot } from './catalogue-snapshot.js';
+import {
+  listAuthors,
+  listCompanyFigures,
+  listComponentLinks,
+  listCompetitionResults,
+  listCorrections,
+  listEvents,
+  listGlossary,
+  listGuides,
+  listIntegratorPartnerships,
+  listReleaseFacts,
+  listReleaseRobots,
+} from './registers.js';
 import { queryOne, type SqlClient } from './sql-client.js';
 import type { ArticleRow, AvailabilityRow, CapabilityProofRow, HomeRobotRow, PriceRow, RepositoryRow, RobotRef, RobotSourceRow, VuntumReader } from './reader.js';
 
@@ -107,6 +121,19 @@ export function createSqlReader(client: SqlClient): VuntumReader {
           ORDER BY is_official DESC, stars DESC NULLS LAST`,
         [`%${query.trim()}%`],
       ),
+
+    listEvents: () => listEvents(client),
+    listCorrections: () => listCorrections(client),
+    listCompetitionResults: () => listCompetitionResults(client),
+    listCompanyFigures: () => listCompanyFigures(client),
+    listIntegratorPartnerships: () => listIntegratorPartnerships(client),
+    listComponentLinks: () => listComponentLinks(client),
+    listGuides: (locale) => listGuides(client, locale),
+    listAuthors: () => listAuthors(client),
+    listGlossary: (locale) => listGlossary(client, locale),
+    listReleaseRobots: () => listReleaseRobots(client),
+    listReleaseFacts: () => listReleaseFacts(client),
+    loadCatalogueSnapshot: () => loadCatalogueSnapshot(client),
 
     lookupApiKey: (key) => lookupApiKey(client, key),
 

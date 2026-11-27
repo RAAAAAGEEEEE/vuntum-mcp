@@ -3,7 +3,7 @@
   "name": "com.vuntum/mcp",
   "title": "Vuntum",
   "description": "Sourced, dated data on consumer robots and physical AI: specs, prices, availability, evidence.",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "websiteUrl": "https://vuntum.com/fr/donnees",
   "repository": {
     "url": "https://github.com/RAAAAAGEEEEE/vuntum-mcp",

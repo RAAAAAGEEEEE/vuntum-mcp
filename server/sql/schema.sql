@@ -46,6 +46,8 @@ CREATE TABLE public_robot (
   -- Keys of `robotUtilities` (src/domain/utilities.ts), French slugs: 'menage', 'recherche'...
   utilities           text[] NOT NULL DEFAULT '{}',
   -- 'full', or 'light' for an identity-only sheet backed by one page
+  -- floor_cleaning | lawn_mowing | pool_cleaning | window_cleaning | other (household robots only)
+  home_task           text,
   sheet_level         text NOT NULL DEFAULT 'full',
   light_source_url    text,
   light_source_name   text,
@@ -163,15 +165,21 @@ CREATE TABLE public_robot_identifier (
 
 -- A company that an official page names inside a robot.
 CREATE TABLE public_component_link (
-  robot_slug    text NOT NULL,
-  company_slug  text NOT NULL,
-  company_name  text NOT NULL,
-  company_url   text NOT NULL,
+  robot_slug         text NOT NULL,
+  robot_name         text NOT NULL,
+  manufacturer_name  text NOT NULL,
+  company_slug       text NOT NULL,
+  company_name       text NOT NULL,
+  company_url        text NOT NULL,
+  country_code       text,
+  -- the company's ownership, as its official page words it (null when not stated)
+  ownership          text,
   -- motor | gearbox | sensor | hand | chip | battery
-  component     text NOT NULL,
-  detail        text,
-  detail_en     text,
-  url           text NOT NULL
+  component          text NOT NULL,
+  detail             text,
+  detail_en          text,
+  url                text NOT NULL,
+  confirmed_at       timestamptz NOT NULL DEFAULT now()
 );
 
 -- A dated promise of a maker (release, delivery...), for the humanoid tracker.
@@ -224,6 +232,130 @@ CREATE TABLE public_repository (
   is_official           boolean NOT NULL DEFAULT false,
   pushed_at             timestamptz,
   api_fetched_at        timestamptz
+);
+
+-- ------------------------------------------------------------------ registers
+
+-- Robot forms (`public_robot.category_slug`), in display order.
+CREATE TABLE public_robot_category (
+  slug      text PRIMARY KEY,
+  label_fr  text NOT NULL,
+  label_en  text,
+  position  integer NOT NULL DEFAULT 0
+);
+
+-- Fairs, competitions and conferences, each with the organiser's official page.
+CREATE TABLE public_event (
+  slug            text PRIMARY KEY,
+  name            text NOT NULL,
+  -- fair | competition | conference
+  kind            text NOT NULL,
+  starts_on       date NOT NULL,
+  ends_on         date NOT NULL,
+  city            text,
+  country_fr      text,
+  country_en      text,
+  online          boolean NOT NULL DEFAULT false,
+  url             text NOT NULL,
+  description_fr  text NOT NULL,
+  description_en  text NOT NULL,
+  confirmed_at    timestamptz NOT NULL
+);
+
+-- The public log of corrections made to published data.
+CREATE TABLE public_correction (
+  id            text PRIMARY KEY,
+  subject_type  text NOT NULL,
+  summary_fr    text NOT NULL,
+  detail_fr     text,
+  -- null while the English text is not written: the tool then leaves the correction out of the English list
+  summary_en    text,
+  detail_en     text,
+  corrected_at  timestamptz NOT NULL
+);
+
+-- Rankings of robot competitions, each row with the official ranking page.
+CREATE TABLE public_competition_result (
+  id                text PRIMARY KEY,
+  competition_slug  text NOT NULL,
+  competition_name  text NOT NULL,
+  edition_year      integer NOT NULL,
+  place_fr          text NOT NULL,
+  place_en          text NOT NULL,
+  discipline_fr     text NOT NULL,
+  discipline_en     text NOT NULL,
+  rank              integer NOT NULL,
+  team              text NOT NULL,
+  institution       text,
+  robot             text,
+  detail_fr         text,
+  detail_en         text,
+  autonomy          text NOT NULL,
+  autonomy_text     text,
+  autonomy_url      text,
+  url               text NOT NULL,
+  confirmed_at      timestamptz NOT NULL
+);
+
+-- Funding and headcount of a company, as of a date, from a page of that company.
+CREATE TABLE public_company_figure (
+  id                 text PRIMARY KEY,
+  company_name       text NOT NULL,
+  manufacturer_slug  text,
+  -- round | valuation | headcount | total_raised (src/domain/figures.ts)
+  kind               text NOT NULL,
+  amount             numeric,
+  currency           text,
+  headcount          integer,
+  -- over | nearly | about, or null when the figure is exact (src/domain/figures.ts)
+  qualifier          text,
+  stage              text,
+  as_of              date NOT NULL,
+  note_fr            text,
+  note_en            text,
+  url                text NOT NULL
+);
+
+-- An integrator and the maker programme it claims, with the quoted words.
+CREATE TABLE public_integrator_partnership (
+  id                 text PRIMARY KEY,
+  integrator_slug    text NOT NULL,
+  integrator_name    text NOT NULL,
+  country_code       text NOT NULL,
+  website_url        text,
+  manufacturer_slug  text NOT NULL,
+  program            text NOT NULL,
+  -- who wrote the quoted words: manufacturer | integrator
+  author             text NOT NULL,
+  quote              text NOT NULL,
+  url                text NOT NULL,
+  published_on       date NOT NULL,
+  confirmed_at       timestamptz NOT NULL
+);
+
+-- The signatories of the site.
+CREATE TABLE public_author (
+  slug    text PRIMARY KEY,
+  name    text NOT NULL,
+  bio_fr  text,
+  bio_en  text
+);
+
+-- The glossary, one row per entry and language.
+CREATE TABLE public_glossary_entry (
+  slug          text NOT NULL,
+  locale        text NOT NULL,
+  term          text NOT NULL,
+  other_term    text,
+  abbreviation  text,
+  definition    text NOT NULL,
+  -- slugs, in the same language, of related entries
+  related       text[] NOT NULL DEFAULT '{}',
+  -- [{"label": "...", "url": "..."}, ...]
+  "references"  jsonb NOT NULL DEFAULT '[]',
+  verified_on   date,
+  noindex       boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (slug, locale)
 );
 
 -- ------------------------------------------------------------------ articles and changes

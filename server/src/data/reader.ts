@@ -4,6 +4,20 @@ import type { FactObservationRow } from './fact-sources.js';
 import type { ProgrammableFilters, ProgrammableRobotView } from './programming.js';
 import type { RobotComponent } from './components.js';
 import type { RobotIdentifier } from './identifiers.js';
+import type {
+  AuthorRow,
+  ComponentLinkDb,
+  CorrectionRow,
+  EventRow,
+  FigureRow,
+  GlossaryRow,
+  GuideRow,
+  IntegratorRow,
+  ReleaseFactRow,
+  ReleaseRobotRow,
+  ResultRowDb,
+} from './registers.js';
+import type { CatalogueSnapshot } from '../domain/rankings/snapshot.js';
 import type { SearchHit, SearchOptions } from './search.js';
 import type { RobotDetail } from '../domain/api.js';
 import type { TrackerRow } from '../domain/humanoid-tracker.js';
@@ -125,6 +139,24 @@ export interface VuntumReader {
   listFactObservations(robotId: string, predicate?: string): Promise<FactObservationRow[]>;
   /** Published repositories whose name or description contains `query` (all of them for an empty query). */
   listRepositories(query: string): Promise<RepositoryRow[]>;
+  /** The robotics events calendar (`public_event`). */
+  listEvents(): Promise<EventRow[]>;
+  /** The public corrections log, newest first. */
+  listCorrections(): Promise<CorrectionRow[]>;
+  listCompetitionResults(): Promise<ResultRowDb[]>;
+  listCompanyFigures(): Promise<FigureRow[]>;
+  listIntegratorPartnerships(): Promise<IntegratorRow[]>;
+  /** Every supplier, component and robot link, not only one robot's. */
+  listComponentLinks(): Promise<ComponentLinkDb[]>;
+  /** The published buyer guides of one language, newest first. */
+  listGuides(locale: 'fr' | 'en'): Promise<GuideRow[]>;
+  listAuthors(): Promise<AuthorRow[]>;
+  listGlossary(locale: 'fr' | 'en'): Promise<GlossaryRow[]>;
+  /** The robots and facts the upcoming-releases rule reads. */
+  listReleaseRobots(): Promise<ReleaseRobotRow[]>;
+  listReleaseFacts(): Promise<ReleaseFactRow[]>;
+  /** The published catalogue in a few queries, for the rankings and the observatory. */
+  loadCatalogueSnapshot(): Promise<CatalogueSnapshot>;
   /** What a presented pro key grants, or null for an unknown or revoked key. */
   lookupApiKey(key: string): Promise<ApiKeyGrant | null>;
   close(): Promise<void>;

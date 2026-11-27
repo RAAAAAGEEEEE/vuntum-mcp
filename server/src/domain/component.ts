@@ -20,3 +20,11 @@ export function componentDetailFor(
 ): string | null {
   return locale === 'fr' ? row.detail : row.detailEn;
 }
+
+export const MIN_COMPONENT_LINKS_PUBLIC = 12;
+export const MIN_COMPONENT_COMPANIES_PUBLIC = 5;
+
+/** The page exists from enough sourced links on enough distinct companies. */
+export function componentsPageExists(links: number, companies: number): boolean {
+  return links >= MIN_COMPONENT_LINKS_PUBLIC && companies >= MIN_COMPONENT_COMPANIES_PUBLIC;
+}

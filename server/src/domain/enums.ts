@@ -128,3 +128,6 @@ export const autonomyLevels = [
   'A4_task_autonomy',
   'A5_general_autonomy',
 ] as const;
+
+/** Segments the public catalogue may contain: all of them. */
+export const catalogueSegments: readonly RobotSegment[] = robotSegments;

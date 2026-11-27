@@ -6,7 +6,7 @@ MCP client (Claude, ChatGPT, Cursor, VS Code, your code)
         v
 server-http.ts / server-stdio.ts   HTTP guard, quota, pro key, graceful shutdown
         |
-server.ts + tools.ts               20 read-only tools, attribution + license in every answer
+server.ts + tools.ts               32 read-only tools, attribution + license in every answer
         |
 VuntumReader (data/reader.ts)      the only way the tools reach data
         |
@@ -16,7 +16,7 @@ createSqlReader (data/sql-reader.ts) -> PostgreSQL, read-only role, public_* rel
 The public server runs at `https://vuntum.com/mcp`. The same code is in [`server/`](../server/)
 and can run on your machine against the fictitious seed.
 
-- **Read-only.** All 20 tools carry the annotation `readOnlyHint: true` (checked by
+- **Read-only.** All 32 tools carry the annotation `readOnlyHint: true` (checked by
   [`examples/check.mjs`](../examples/check.mjs) against the public server). The PostgreSQL role
   has `default_transaction_read_only` and only reads `public_*` relations
   ([`server/sql/readonly-role.sql`](../server/sql/readonly-role.sql)).
@@ -57,7 +57,7 @@ and can run on your machine against the fictitious seed.
 | [`server.json`](../server.json) | Entry for the official MCP registry (`com.vuntum/mcp`). |
 | [`glama.json`](../glama.json) | Maintainer declaration for the Glama directory. |
 | [`examples/quickstart.mjs`](../examples/quickstart.mjs) | Lists the tools of the public server, then searches robots. |
-| [`examples/check.mjs`](../examples/check.mjs) | Smoke test of the public server: 20 tools and one sourced answer. |
+| [`examples/check.mjs`](../examples/check.mjs) | Smoke test of the public server: 32 tools and one sourced answer. |
 
 ## Differences with vuntum.com
 

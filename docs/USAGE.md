@@ -33,6 +33,18 @@ The exact input schemas are served by the server itself (`tools/list`).
 | `search_open_source_projects` | Open-source robotics repositories referenced by Vuntum. | `{"query": "ros"}` |
 | `get_editorial_scope` | What Vuntum follows first, follows less and no longer follows, with the date of the last update. | `{}` |
 | `get_humanoid_tracker` | Dated stage of each humanoid (announced, pre-order, on sale, at a customer), with source and the gap with the promised date. | `{"stage": "on_sale"}` |
+| `get_events` | Robotics fairs, competitions and conferences, coming or ended less than 90 days ago, each with its official page and the day it was last read. | `{"country": "Japan", "kind": "fair"}` |
+| `get_corrections` | The public corrections log, newest first. | `{"limit": 10}` |
+| `get_competition_results` | Rankings of robot competitions, each row with the official ranking page. | `{"competition": "robocup", "year": 2026}` |
+| `get_upcoming_releases` | Robots announced for pre-order or waitlist, or with a first shipping date still to come. | `{"limit": 10}` |
+| `get_company_figures` | Funding and headcount of a company, as of a date, with the company page they come from. | `{"company": "unitree"}` |
+| `get_integrators` | Integrators and the maker programmes they claim, with the quoted words (third-party text). | `{"maker": "unitree", "country": "DE"}` |
+| `get_component_suppliers` | Who supplies which component (motor, gearbox, sensor, hand, chip, battery) to which robot. | `{"component": "motor"}` |
+| `get_guides` | The published buyer guides of the language, newest first. | `{"locale": "en"}` |
+| `get_authors` | The signatories of the site, with their biography in the language asked. | `{}` |
+| `get_glossary` | The glossary: terms, definitions and the pages each was checked against. | `{"query": "actuator"}` |
+| `get_rankings` | The rankings and « best for » pages the data supports; with a `slug`, the robots in order with value, source and verification day. | `{"slug": "lightest-humanoids"}` |
+| `get_observatory` | Figures of the published catalogue: robots by segment, form, country and year, claims by evidence level, official price bands. | `{}` |
 | `get_change_history` | Pro key only. Full public history of changes, filterable by robot, kind and dates, paged. | `{"slug": "unitree-g1", "from": "2026-01-01"}` |
 | `get_fact_sources` | Pro key only. Every accepted observation of each fact of a robot, outdated values included. | `{"slug": "unitree-g1", "predicate": "price.msrp"}` |
 
@@ -79,7 +91,7 @@ Data answers include a short `disclaimer`: "not disclosed" means the information
 
 ```bash
 npm run quickstart -- "unitree"   # lists the tools, then searches
-npm run check                     # checks the 20 tools and a sourced answer
+npm run check                     # checks the 32 tools and a sourced answer
 ```
 
 Output of `npm run quickstart -- "unitree"` on 8 October 2026, when the server had 16 tools (first lines):

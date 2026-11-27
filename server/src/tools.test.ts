@@ -9,6 +9,7 @@ import { createSqlReader } from './data/sql-reader.js';
 import type { VuntumReader } from './data/reader.js';
 import { buildServerCard } from './server-card.js';
 import { createMcpServer } from './server.js';
+import { getEvents } from './tools.js';
 import { createSeededDatabase } from './test-support/database.js';
 
 /**
@@ -215,6 +216,63 @@ describe('the tools on the fictitious seed', () => {
     for (const [name, body] of Object.entries(out)) expect(body['attribution'], name).toMatch(/^Source/);
   });
 
+  it('the twelve register tools answer from the seed, with their sources and dates', async () => {
+    const calls: Array<[string, Record<string, unknown>]> = [
+      ['get_events', {}],
+      ['get_corrections', {}],
+      ['get_competition_results', {}],
+      ['get_company_figures', { company: 'demo-maker-one' }],
+      ['get_integrators', { country: 'de' }],
+      ['get_component_suppliers', { company: 'example' }],
+      ['get_guides', {}],
+      ['get_authors', {}],
+      ['get_glossary', { query: 'actionneur' }],
+      ['get_rankings', {}],
+      ['get_observatory', {}],
+      ['get_upcoming_releases', {}],
+    ];
+    const out = Object.fromEntries(await Promise.all(calls.map(async ([name, args]) => [name, await answer('public', name, args)] as const)));
+    expect((out['get_events']!['coming'] as Array<{ name: string; source: { host: string } }>)[0]).toMatchObject({
+      name: 'Demo Robot Expo 2099',
+      source: { host: 'example.com', lastReadOn: '2026-10-01' },
+    });
+    // The French list leaves out a correction whose English text is not written; it is the French one that is full.
+    expect(out['get_corrections']!['total']).toBe(2);
+    expect((await answer('public', 'get_corrections', { locale: 'en' }))['total']).toBe(1);
+    expect(out['get_competition_results']!['results']).toEqual([
+      expect.objectContaining({ competition: 'Demo Robot Cup', rank: 1, source: expect.objectContaining({ host: 'example.com' }) }),
+    ]);
+    expect(out['get_company_figures']!['figures']).toHaveLength(2);
+    expect(out['get_integrators']!['integrators']).toEqual([
+      expect.objectContaining({ claimedBy: 'integrator', quote: expect.objectContaining({ warning: expect.stringContaining('Texte tiers') }) }),
+    ]);
+    expect(out['get_component_suppliers']!['suppliers']).toEqual([
+      expect.objectContaining({ component: 'motor', robot: expect.objectContaining({ slug: 'demo-robot-a' }) }),
+    ]);
+    expect(out['get_guides']!['guides']).toEqual([expect.objectContaining({ slug: 'choisir-un-robot-demo', publishedOn: '2026-10-04' })]);
+    expect(out['get_authors']!['authors']).toEqual([expect.objectContaining({ slug: 'demo-author', bio: 'Biographie fictive.' })]);
+    // An author without an English biography is listed without it, never with the French one.
+    expect(((await answer('public', 'get_authors', { locale: 'en' }))['authors'] as Array<{ bio: string | null }>)[0]!.bio).toBeNull();
+    expect(out['get_glossary']!['entries']).toEqual([
+      expect.objectContaining({ slug: 'actionneur', verifiedOn: '2026-10-01', references: [expect.objectContaining({ url: 'https://example.com/docs/actuators' })] }),
+    ]);
+    // A not indexed entry is never returned, whatever the query.
+    expect(((await answer('public', 'get_glossary', { query: 'brouillon' }))['entries'] as unknown[]).length).toBe(0);
+    expect(out['get_rankings']!['rankings']).toEqual([]);
+    expect(out['get_observatory']!).toMatchObject({ pageOnline: false, robots: 3, manufacturers: 2 });
+    expect((out['get_upcoming_releases']!['releases'] as Array<{ robot: { slug: string } }>).map((r) => r.robot.slug)).toEqual(['demo-robot-b']);
+    for (const [name, body] of Object.entries(out)) expect(body['attribution'], name).toMatch(/^Source/);
+  });
+
+  it('the calendar tool puts a finished event in `recent` for a given day, and never lists it as coming', async () => {
+    const answerOf = (await getEvents({ data, baseUrl: 'https://vuntum.com' }, { today: '2026-10-01' })) as {
+      coming: Array<{ name: string }>;
+      recent: Array<{ name: string; phase: string }>;
+    };
+    expect(answerOf.recent).toEqual([expect.objectContaining({ name: 'Demo Robot Cup 2026', phase: 'recent' })]);
+    expect(answerOf.coming.map((e) => e.name)).toEqual(['Demo Robot Expo 2099']);
+  });
+
   it('the server card lists every registered tool, read-only', async () => {
     const card = await buildServerCard();
     const server = readFileSync(new URL('./server.ts', import.meta.url), 'utf8');
@@ -229,6 +287,6 @@ describe('the seed is fictitious', () => {
     const urls = seed.match(/https?:\/\/[^\s'"]+/g) ?? [];
     expect(urls.length).toBeGreaterThan(5);
     for (const url of urls.filter((u) => !u.startsWith('https://vuntum.com/mcp'))) expect(new URL(url).hostname).toBe('example.com');
-    expect(seed.match(/'Demo Robot [ABC]'/g)).toHaveLength(3);
+    expect(seed.match(/^  \('rob_demo_[abc]', 'demo-robot-[abc]', 'mfr_demo_\d', .*\n   'Demo Robot [ABC]', /gm)).toHaveLength(3);
   });
 });

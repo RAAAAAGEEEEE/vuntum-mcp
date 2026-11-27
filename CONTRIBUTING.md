@@ -28,7 +28,7 @@ npm install
 npm run check
 ```
 
-`npm run check` must print `OK: 20 tools, all read-only, get_robot answers with sourced data.`
+`npm run check` must print `OK: 32 tools, all read-only, get_robot answers with sourced data.`
 If you add or remove a tool in the documentation, update the `EXPECTED` list in
 [`examples/check.mjs`](examples/check.mjs) in the same pull request.
 

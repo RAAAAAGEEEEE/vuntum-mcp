@@ -10,22 +10,22 @@ INSERT INTO public_manufacturer (id, slug, name_usual, country_code) VALUES
 
 INSERT INTO public_robot (id, slug, manufacturer_id, manufacturer_slug, manufacturer_name, manufacturer_country,
                           name_usual, aliases, category_slug, commercial_status, announced_year,
-                          summary_fr, summary_en, segment, utilities, last_verified_at, published_at, updated_at) VALUES
+                          summary_fr, summary_en, segment, utilities, home_task, last_verified_at, published_at, updated_at) VALUES
   ('rob_demo_a', 'demo-robot-a', 'mfr_demo_1', 'demo-maker-one', 'Demo Maker One', 'FR',
    'Demo Robot A', '{DRA}', 'humanoide', 'shipping', 2025,
    'Robot humanoïde fictif, utilisé pour montrer le serveur MCP en local.',
    'Fictitious humanoid robot, used to demonstrate the MCP server locally.',
-   'companion', '{menage,recherche}', '2026-10-01T09:00:00Z', '2026-09-01T09:00:00Z', '2026-10-01T09:00:00Z'),
+   'companion', '{menage,recherche}', NULL, '2026-10-01T09:00:00Z', '2026-09-01T09:00:00Z', '2026-10-01T09:00:00Z'),
   ('rob_demo_b', 'demo-robot-b', 'mfr_demo_2', 'demo-maker-two', 'Demo Maker Two', 'DE',
    'Demo Robot B', '{}', 'humanoide', 'preorder', 2026,
    'Second robot humanoïde fictif, en précommande.',
    'Second fictitious humanoid robot, on pre-order.',
-   'research_education', '{recherche,education}', '2026-10-05T09:00:00Z', '2026-09-15T09:00:00Z', '2026-10-05T09:00:00Z'),
+   'research_education', '{recherche,education}', NULL, '2026-10-05T09:00:00Z', '2026-09-15T09:00:00Z', '2026-10-05T09:00:00Z'),
   ('rob_demo_c', 'demo-robot-c', 'mfr_demo_1', 'demo-maker-one', 'Demo Maker One', 'FR',
    'Demo Robot C', '{}', 'aspirateur', 'shipping', 2024,
    'Robot aspirateur fictif.',
    'Fictitious robot vacuum cleaner.',
-   'utility', '{menage}', '2026-10-10T09:00:00Z', '2026-08-01T09:00:00Z', '2026-10-10T09:00:00Z');
+   'utility', '{menage}', 'floor_cleaning', '2026-10-10T09:00:00Z', '2026-08-01T09:00:00Z', '2026-10-10T09:00:00Z');
 
 INSERT INTO public_robot_variant (id, robot_id, slug, name, differences_fr) VALUES
   ('var_demo_a_pro', 'rob_demo_a', 'pro', 'Demo Robot A Pro', 'Batterie plus grande (fictif).');
@@ -103,9 +103,11 @@ INSERT INTO public_robot_capability (robot_id, capability, claim_id, evidence_le
 INSERT INTO public_robot_identifier (robot_id, kind, marketplace, variant, value, verified_at) VALUES
   ('rob_demo_a', 'mpn', 'manufacturer', '', 'DEMO-A-0001', '2026-10-01T09:00:00Z');
 
-INSERT INTO public_component_link (robot_slug, company_slug, company_name, company_url, component, detail, detail_en, url) VALUES
-  ('demo-robot-a', 'example-motors', 'Example Motors', 'https://example.com/example-motors', 'motor',
-   'Moteurs des jambes (fictif)', 'Leg motors (fictitious)', 'https://example.com/demo-maker-one/demo-robot-a');
+INSERT INTO public_component_link (robot_slug, robot_name, manufacturer_name, company_slug, company_name, company_url,
+                                   country_code, ownership, component, detail, detail_en, url, confirmed_at) VALUES
+  ('demo-robot-a', 'Demo Robot A', 'Demo Maker One', 'example-motors', 'Example Motors', 'https://example.com/example-motors',
+   'FR', NULL, 'motor', 'Moteurs des jambes (fictif)', 'Leg motors (fictitious)',
+   'https://example.com/demo-maker-one/demo-robot-a', '2026-10-01T09:00:00Z');
 
 INSERT INTO public_robot_programmability (robot_id, slug, sdk_public, python, official_repositories, top_stars,
                                           programming_facts, is_programmable) VALUES
@@ -130,3 +132,56 @@ INSERT INTO public_change (id, entity_type, entity_id, kind, summary_fr, summary
   ('chg_demo_2', 'robot', 'rob_demo_a', 'published', 'Publication de la fiche « Demo Robot A »', NULL, '2026-09-01T09:00:00Z'),
   ('chg_demo_3', 'robot', 'rob_demo_b', 'published', 'Publication de la fiche « Demo Robot B »', NULL, '2026-09-15T09:00:00Z'),
   ('chg_demo_4', 'robot', 'rob_demo_a', 'price_changed', 'Prix mis à jour', 'Price updated', '2026-10-01T09:00:00Z');
+
+-- Registers (calendar, corrections, competitions, figures, integrators, authors, glossary, a guide).
+INSERT INTO public_robot_category (slug, label_fr, label_en, position) VALUES
+  ('humanoide', 'Humanoïde', 'Humanoid', 1),
+  ('aspirateur', 'Aspirateur', 'Vacuum', 2);
+
+INSERT INTO public_event (slug, name, kind, starts_on, ends_on, city, country_fr, country_en, online, url,
+                          description_fr, description_en, confirmed_at) VALUES
+  ('demo-robot-expo-2099', 'Demo Robot Expo 2099', 'fair', '2099-05-10', '2099-05-12', 'Exemple-sur-Mer', 'France', 'France', false,
+   'https://example.com/demo-robot-expo', 'Salon fictif pour l''exemple.', 'Fictitious fair for the example.', '2026-10-01T09:00:00Z'),
+  ('demo-robot-cup-2026', 'Demo Robot Cup 2026', 'competition', '2026-09-10', '2026-09-12', 'Beispielstadt', 'Allemagne', 'Germany', false,
+   'https://example.com/demo-robot-cup', 'Compétition fictive pour l''exemple.', 'Fictitious competition for the example.', '2026-09-13T09:00:00Z');
+
+INSERT INTO public_correction (id, subject_type, summary_fr, detail_fr, summary_en, detail_en, corrected_at) VALUES
+  ('cor_demo_1', 'fact', 'Hauteur corrigée (exemple fictif)', 'La hauteur lue avait une unité fausse (fictif).',
+   'Height corrected (fictitious example)', 'The height had a wrong unit (fictitious).', '2026-10-02T09:00:00Z'),
+  ('cor_demo_2', 'article', 'Précision ajoutée (exemple fictif)', NULL, NULL, NULL, '2026-10-03T09:00:00Z');
+
+INSERT INTO public_competition_result (id, competition_slug, competition_name, edition_year, place_fr, place_en,
+                                       discipline_fr, discipline_en, rank, team, institution, robot, detail_fr, detail_en,
+                                       autonomy, autonomy_text, autonomy_url, url, confirmed_at) VALUES
+  ('res_demo_1', 'demo-robot-cup', 'Demo Robot Cup', 2026, 'Beispielstadt', 'Beispielstadt', 'Course', 'Race', 1,
+   'Team Demo', 'Example University', 'Demo Robot A', NULL, NULL, 'autonomous', NULL, NULL,
+   'https://example.com/demo-robot-cup/results', '2026-09-13T09:00:00Z');
+
+INSERT INTO public_company_figure (id, company_name, manufacturer_slug, kind, amount, currency, headcount, qualifier, stage,
+                                   as_of, note_fr, note_en, url) VALUES
+  ('fig_demo_1', 'Demo Maker One', 'demo-maker-one', 'round', 5000000, 'EUR', NULL, NULL, 'seed',
+   '2026-09-01', 'Montant fictif.', 'Fictitious amount.', 'https://example.com/demo-maker-one/about'),
+  ('fig_demo_2', 'Demo Maker One', 'demo-maker-one', 'headcount', NULL, NULL, 120, 'about', NULL,
+   '2026-09-01', NULL, NULL, 'https://example.com/demo-maker-one/about');
+
+INSERT INTO public_integrator_partnership (id, integrator_slug, integrator_name, country_code, website_url, manufacturer_slug,
+                                           program, author, quote, url, published_on, confirmed_at) VALUES
+  ('int_demo_1', 'example-integration', 'Example Integration', 'DE', 'https://example.com/example-integration', 'demo-maker-one',
+   'Demo Partner Programme', 'integrator', 'We deploy Demo Robot A for our customers (fictitious quote).',
+   'https://example.com/example-integration/partners', '2026-09-05', '2026-10-01T09:00:00Z');
+
+INSERT INTO public_author (slug, name, bio_fr, bio_en) VALUES
+  ('demo-author', 'Auteur Démo', 'Biographie fictive.', NULL);
+
+INSERT INTO public_glossary_entry (slug, locale, term, other_term, abbreviation, definition, related, "references", verified_on, noindex) VALUES
+  ('actionneur', 'fr', 'Actionneur', 'Actuator', NULL, 'Organe qui transforme un ordre en mouvement (définition fictive).',
+   '{}', '[{"label":"Example Docs, actionneurs","url":"https://example.com/docs/actuators"}]', '2026-10-01', false),
+  ('actuator', 'en', 'Actuator', 'Actionneur', NULL, 'The part that turns a command into motion (fictitious definition).',
+   '{}', '[{"label":"Example Docs, actuators","url":"https://example.com/docs/actuators"}]', '2026-10-01', false),
+  ('brouillon', 'fr', 'Brouillon', NULL, NULL, 'Entrée non indexée, que l''outil ne renvoie jamais.', '{}', '[]', NULL, true);
+
+INSERT INTO public_article (id, slug, locale, kind, title, standfirst, body, sources, published_at, updated_at) VALUES
+  ('art_demo_guide_1', 'choisir-un-robot-demo', 'fr', 'guide', 'Choisir un robot de démonstration (exemple fictif)',
+   'Un guide de démonstration.', '[{"text":"Ce guide est fictif."}]', '[]', '2026-10-04T09:00:00Z', '2026-10-04T09:00:00Z'),
+  ('art_demo_guide_1', 'choosing-a-demo-robot', 'en', 'guide', 'Choosing a demonstration robot (fictitious example)',
+   'A demonstration guide.', '[{"text":"This guide is fictitious."}]', '[]', '2026-10-04T09:00:00Z', '2026-10-04T09:00:00Z');

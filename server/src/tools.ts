@@ -1,3 +1,16 @@
+import { allRankingSlugs, buildObservatory, buildRanking, eligibleRankings, type Ranking } from './domain/rankings/index.js';
+import {
+  comingEvents,
+  eventsPageExists,
+  eventKindLabels,
+  eventPhase,
+  recentEvents,
+  type EventKind,
+} from './domain/event.js';
+import { MIN_FIGURES_PUBLIC, formatFigure } from './domain/figures.js';
+import { MIN_RESULTS_PUBLIC } from './domain/competition.js';
+import { componentsPageExists } from './domain/component.js';
+import type { ReleaseFactRow, ReleaseRobotRow } from './data/registers.js';
 import { PRO_ACCESS_URL } from './access.js';
 import { buildComparisonInput, getEditorialScope, getMethodology, MAX_ITEMS } from './methodology.js';
 import { changeSummaryEn } from './data/change-summary.js';
@@ -800,3 +813,521 @@ export async function searchOpenSourceProjects(
 }
 
 export { getEditorialScope, getMethodology };
+const isoDay = (v: string | Date): string => new Date(v).toISOString().slice(0, 10);
+
+/**
+ * The robotics events calendar: upcoming and running events, and
+ * those that ended less than 90 days ago, read from `public_event`. Same rows, same
+ * phases (`comingEvents`, `recentEvents`) as the page `/fr/evenements`. Each event
+ * names its official page (the source) and the date that page was last read.
+ */
+export async function getEvents(
+  ctx: ToolContext,
+  args: { limit?: number; locale?: ToolLocale; country?: string; kind?: EventKind; today?: string } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const today = args.today ?? new Date().toISOString().slice(0, 10);
+  const rows = await ctx.data.listEvents();
+  const all = rows.map((r) => ({
+    id: r.slug,
+    slug: r.slug,
+    startsOn: isoDay(r.starts_on),
+    endsOn: isoDay(r.ends_on),
+    row: r,
+  }));
+  const wanted = (country: string | null | undefined, fr: string | null, en: string | null): boolean =>
+    !country || [fr, en].some((c) => c?.toLowerCase() === country.trim().toLowerCase());
+  const keep = (e: (typeof all)[number]): boolean =>
+    (!args.kind || e.row.kind === args.kind) && wanted(args.country, e.row.country_fr, e.row.country_en);
+  const shape = (e: (typeof all)[number]) => ({
+    name: e.row.name,
+    kind: eventKindLabels[e.row.kind][locale],
+    phase: eventPhase(e, today),
+    startsOn: e.startsOn,
+    endsOn: e.endsOn,
+    city: e.row.city,
+    country: locale === 'en' ? e.row.country_en : e.row.country_fr,
+    online: e.row.online,
+    description: locale === 'en' ? e.row.description_en : e.row.description_fr,
+    source: { url: e.row.url, host: new URL(e.row.url).hostname.replace(/^www\./, ''), lastReadOn: isoDay(e.row.confirmed_at) },
+    page: `/${locale}/${locale === 'en' ? 'events' : 'evenements'}`,
+  });
+  const limit = Math.min(args.limit ?? 20, MAX_ITEMS);
+  const coming = truncate(comingEvents(all, today).filter(keep).map(shape), limit);
+  const recent = truncate(recentEvents(all, today).filter(keep).map(shape), limit);
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    today,
+    pageOnline: eventsPageExists(all, today),
+    note:
+      locale === 'en'
+        ? 'Dates are those of the organiser’s official page, read on the date shown. Coming and running events first, then those ended less than 90 days ago.'
+        : 'Les dates sont celles de la page officielle de l’organisateur, lue à la date indiquée. Événements à venir ou en cours d’abord, puis ceux finis depuis moins de 90 jours.',
+    coming: coming.items,
+    comingTotal: coming.total,
+    comingTruncated: coming.truncated,
+    recent: recent.items,
+    recentTotal: recent.total,
+  };
+}
+
+const dayOf = (v: string | Date): string => new Date(v).toISOString().slice(0, 10);
+const hostOf = (url: string): string => new URL(url).hostname.replace(/^www\./, '');
+
+/** The public corrections log (`/fr/corrections`): newest first; in English only once the English text exists. */
+export async function getCorrections(
+  ctx: ToolContext,
+  args: { limit?: number; locale?: ToolLocale } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const rows = await ctx.data.listCorrections();
+  const all = rows
+    .map((r) => ({
+      id: r.id,
+      subjectType: r.subject_type,
+      correctedOn: dayOf(r.corrected_at),
+      summary: locale === 'en' ? r.summary_en : r.summary_fr,
+      detail: locale === 'en' ? r.detail_en : r.detail_fr,
+    }))
+    .filter((r): r is typeof r & { summary: string } => r.summary !== null);
+  const out = truncate(all, Math.min(args.limit ?? 20, MAX_ITEMS));
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    page: `/${locale}/corrections`,
+    total: out.total,
+    truncated: out.truncated,
+    corrections: out.items,
+  };
+}
+
+/** Competition rankings: each row carries the official ranking page and the date it was last read. */
+export async function getCompetitionResults(
+  ctx: ToolContext,
+  args: { limit?: number; locale?: ToolLocale; competition?: string; year?: number } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const en = locale === 'en';
+  const rows = await ctx.data.listCompetitionResults();
+  const wanted = args.competition?.trim().toLowerCase();
+  const kept = rows.filter(
+    (r) =>
+      (!wanted || r.competition_slug === wanted || r.competition_name.toLowerCase().includes(wanted)) &&
+      (!args.year || Number(r.edition_year) === args.year),
+  );
+  const out = truncate(kept, Math.min(args.limit ?? 20, MAX_ITEMS));
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    pageOnline: rows.length >= MIN_RESULTS_PUBLIC,
+    page: `/${locale}/${en ? 'results' : 'resultats'}`,
+    total: out.total,
+    truncated: out.truncated,
+    results: out.items.map((r) => ({
+      competition: r.competition_name,
+      competitionSlug: r.competition_slug,
+      editionYear: Number(r.edition_year),
+      place: en ? r.place_en : r.place_fr,
+      discipline: en ? r.discipline_en : r.discipline_fr,
+      rank: Number(r.rank),
+      team: r.team,
+      institution: r.institution,
+      robot: r.robot,
+      detail: en ? r.detail_en : r.detail_fr,
+      autonomy: r.autonomy,
+      autonomyText: r.autonomy_text,
+      autonomyUrl: r.autonomy_url,
+      source: { url: r.url, host: hostOf(r.url), lastReadOn: dayOf(r.confirmed_at) },
+    })),
+  };
+}
+
+/** Company figures: funding, headcount, each with the company page it comes from and the date it is valid at (`asOf`). */
+export async function getCompanyFigures(
+  ctx: ToolContext,
+  args: { limit?: number; locale?: ToolLocale; company?: string } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const rows = await ctx.data.listCompanyFigures();
+  const wanted = args.company?.trim().toLowerCase();
+  const kept = rows.filter((r) => !wanted || r.manufacturer_slug === wanted || r.company_name.toLowerCase().includes(wanted));
+  const out = truncate(kept, Math.min(args.limit ?? 20, MAX_ITEMS));
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    pageOnline: rows.length >= MIN_FIGURES_PUBLIC,
+    page: `/${locale}/${locale === 'en' ? 'figures' : 'chiffres'}`,
+    total: out.total,
+    truncated: out.truncated,
+    figures: out.items.map((r) => ({
+      company: r.company_name,
+      maker: r.manufacturer_slug ? { slug: r.manufacturer_slug, page: pathFor('manufacturer', r.manufacturer_slug, locale) } : null,
+      kind: r.kind,
+      stage: r.stage,
+      value: formatFigure(
+        {
+          kind: r.kind,
+          amount: r.amount === null ? null : Number(r.amount),
+          currency: r.currency,
+          headcount: r.headcount === null ? null : Number(r.headcount),
+          qualifier: r.qualifier,
+        },
+        locale,
+      ),
+      asOf: dayOf(r.as_of),
+      note: locale === 'en' ? r.note_en : r.note_fr,
+      source: { url: r.url, host: hostOf(r.url) },
+    })),
+  };
+}
+
+/**
+ * Integrators and the maker programmes they claim: the quoted words, who wrote them
+ * (the maker or the integrator), the page and the date it was published and last read. Third-party text.
+ */
+export async function getIntegrators(
+  ctx: ToolContext,
+  args: { limit?: number; locale?: ToolLocale; maker?: string; country?: string } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const rows = await ctx.data.listIntegratorPartnerships();
+  const maker = args.maker?.trim().toLowerCase();
+  const country = args.country?.trim().toUpperCase();
+  const kept = rows.filter((r) => (!maker || r.manufacturer_slug === maker) && (!country || r.country_code.toUpperCase() === country));
+  const out = truncate(kept, Math.min(args.limit ?? 20, MAX_ITEMS));
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    page: `/${locale}/${locale === 'en' ? 'integrators' : 'integrateurs'}`,
+    total: out.total,
+    truncated: out.truncated,
+    integrators: out.items.map((r) => ({
+      name: r.integrator_name,
+      slug: r.integrator_slug,
+      countryCode: r.country_code,
+      website: r.website_url,
+      maker: { slug: r.manufacturer_slug, page: pathFor('manufacturer', r.manufacturer_slug, locale) },
+      program: r.program,
+      claimedBy: r.author,
+      quote: { text: r.quote, warning: TEXT[locale].quoteWarning },
+      publishedOn: dayOf(r.published_on),
+      source: { url: r.url, host: hostOf(r.url), lastReadOn: dayOf(r.confirmed_at) },
+    })),
+  };
+}
+
+/**
+ * Who supplies which component to which robot: one line per supplier, component and robot,
+ * each with the official page that carries the wording and the date it was last read.
+ */
+export async function getComponentSuppliers(
+  ctx: ToolContext,
+  args: { limit?: number; locale?: ToolLocale; company?: string; component?: string; robot?: string } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const rows = await ctx.data.listComponentLinks();
+  const company = args.company?.trim().toLowerCase();
+  const component = args.component?.trim().toLowerCase();
+  const kept = rows.filter(
+    (r) =>
+      (!company || r.company_slug === company || r.company_name.toLowerCase().includes(company)) &&
+      (!component || r.component.toLowerCase() === component) &&
+      (!args.robot || r.robot_slug === args.robot),
+  );
+  const out = truncate(kept, Math.min(args.limit ?? 20, MAX_ITEMS));
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    pageOnline: componentsPageExists(rows.length, new Set(rows.map((r) => r.company_slug)).size),
+    page: `/${locale}/${locale === 'en' ? 'components' : 'composants'}`,
+    total: out.total,
+    truncated: out.truncated,
+    suppliers: out.items.map((r) => ({
+      company: { slug: r.company_slug, name: r.company_name, website: r.company_url, countryCode: r.country_code, ownership: r.ownership },
+      component: r.component,
+      detail: locale === 'en' ? (r.detail_en ?? r.detail) : r.detail,
+      robot: { slug: r.robot_slug, name: r.robot_name, maker: r.manufacturer_name, page: pathFor('robot', r.robot_slug, locale) },
+      source: { url: r.url, host: hostOf(r.url), lastReadOn: dayOf(r.confirmed_at) },
+    })),
+  };
+}
+
+/**
+ * The buyer guides (`/fr/guides`): the published guides of the reader's language, newest first.
+ * Each carries its publication date and its address; `get_article` returns the text and its sources.
+ */
+export async function getGuides(
+  ctx: ToolContext,
+  args: { limit?: number; locale?: ToolLocale } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const rows = await ctx.data.listGuides(locale);
+  const out = truncate(rows, Math.min(args.limit ?? 20, MAX_ITEMS));
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    page: `/${locale}/guides`,
+    total: out.total,
+    truncated: out.truncated,
+    guides: out.items.map((g) => ({
+      slug: g.slug,
+      title: g.title,
+      standfirst: g.standfirst,
+      publishedOn: dayOf(g.published_at),
+      page: pathFor('article', g.slug, locale),
+    })),
+  };
+}
+
+/**
+ * The signatories of the site (`/fr/auteurs/<slug>`): name and biography in the reader's language, with the address of
+ * the author page. An author whose biography is not written in that language is listed without it, never with the
+ * other language's text.
+ */
+export async function getAuthors(
+  ctx: ToolContext,
+  args: { limit?: number; locale?: ToolLocale } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const rows = await ctx.data.listAuthors();
+  const out = truncate(rows, Math.min(args.limit ?? 20, MAX_ITEMS));
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    total: out.total,
+    truncated: out.truncated,
+    authors: out.items.map((a) => ({
+      slug: a.slug,
+      name: a.name,
+      bio: (locale === 'fr' ? a.bio_fr : a.bio_en) ?? null,
+      page: `/${locale}/${locale === 'en' ? 'authors' : 'auteurs'}/${a.slug}`,
+    })),
+  };
+}
+
+const plain = (text: string): string => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+
+/**
+ * The glossary (`/fr/lexique`): the same entries as the page, read from the shared package, in the reader's language.
+ * Each entry carries its references (the pages the definition was checked against) and, when it has one, the day its
+ * sourced complement was verified. `query` keeps the entries whose term, abbreviation or definition contains it.
+ */
+export async function getGlossary(
+  ctx: ToolContext,
+  args: { query?: string; limit?: number; locale?: ToolLocale } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const needle = args.query ? plain(args.query.trim()) : '';
+  const rows = await ctx.data.listGlossary(locale);
+  const all = rows.filter(
+    (e) =>
+      !e.noindex &&
+      (!needle || plain(`${e.term} ${e.abbreviation ?? ''} ${e.other_term ?? ''} ${e.definition}`).includes(needle)),
+  );
+  const out = truncate(all, Math.min(args.limit ?? 20, MAX_ITEMS));
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    page: `/${locale}/${locale === 'en' ? 'glossary' : 'lexique'}`,
+    total: out.total,
+    truncated: out.truncated,
+    entries: out.items.map((e) => ({
+      slug: e.slug,
+      term: e.term,
+      abbreviation: e.abbreviation ?? null,
+      definition: e.definition,
+      related: e.related ?? [],
+      references: glossaryReferences(e.references),
+      verifiedOn: e.verified_on ? dayOf(e.verified_on) : null,
+      page: `/${locale}/${locale === 'en' ? 'glossary' : 'lexique'}/${e.slug}`,
+    })),
+  };
+}
+
+/** The `references` column is JSON: keep the entries that have a label and an address, nothing else. */
+function glossaryReferences(value: unknown): Array<{ label: string; url: string }> {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((r) =>
+    r && typeof r === 'object' && typeof (r as { label?: unknown }).label === 'string' && typeof (r as { url?: unknown }).url === 'string'
+      ? [{ label: (r as { label: string }).label, url: (r as { url: string }).url }]
+      : [],
+  );
+}
+
+function rankingSlugIn(ranking: Ranking, locale: ToolLocale): string {
+  const found = allRankingSlugs().find((entry) => entry.fr === ranking.slug);
+  return locale === 'en' ? (found?.en ?? ranking.slug) : ranking.slug;
+}
+
+/**
+ * The rankings and « best for » pages (`/fr/classements`): the very same function as the page builds them from the
+ * published catalogue (shared package), so a page and this tool cannot disagree. Without `slug`, the pages the data
+ * supports today; with a slug (French or English address), the robots in order, each with its value, the source it was
+ * read on, and the day it was last verified. A ranking is ordered by one published criterion, never by a score.
+ */
+export async function getRankings(
+  ctx: ToolContext,
+  args: { slug?: string; limit?: number; locale?: ToolLocale } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const snapshot = await ctx.data.loadCatalogueSnapshot();
+  const base = `/${locale}/${locale === 'en' ? 'rankings' : 'classements'}`;
+  const slugs = allRankingSlugs();
+  if (!args.slug) {
+    const all = eligibleRankings(snapshot);
+    const out = truncate(all, Math.min(args.limit ?? 20, MAX_ITEMS));
+    return {
+      disclaimer: TEXT[locale].disclaimer,
+      page: base,
+      total: out.total,
+      truncated: out.truncated,
+      rankings: out.items.map((r) => ({
+        slug: rankingSlugIn(r, locale),
+        kind: r.kind,
+        criterion: r.criterion,
+        group: r.key.kind === 'ranking' ? r.key.group : null,
+        ability: r.key.kind === 'ability' ? r.key.ability : null,
+        currency: r.currency,
+        robots: r.entries.length,
+        lastVerifiedOn: r.latestVerification ? dayOf(r.latestVerification) : null,
+        page: `${base}/${rankingSlugIn(r, locale)}`,
+      })),
+    };
+  }
+  const requested = slugs.find((e) => e.fr === args.slug || e.en === args.slug);
+  const ranking = requested ? buildRanking(snapshot, requested.fr) : null;
+  if (!ranking) {
+    return {
+      disclaimer: TEXT[locale].disclaimer,
+      page: base,
+      ranking: null,
+      note:
+        locale === 'en'
+          ? 'No ranking page exists at this address: the data does not support one today (at least 4 robots with a sourced, comparable value are needed).'
+          : 'Aucune page de classement à cette adresse : les données n’en soutiennent pas aujourd’hui (il faut au moins 4 robots avec une valeur sourcée et comparable).',
+    };
+  }
+  const out = truncate([...ranking.entries], Math.min(args.limit ?? 20, MAX_ITEMS));
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    page: `${base}/${rankingSlugIn(ranking, locale)}`,
+    ranking: {
+      slug: rankingSlugIn(ranking, locale),
+      kind: ranking.kind,
+      criterion: ranking.criterion,
+      currency: ranking.currency,
+      consideredRobots: ranking.consideredCount,
+      lastVerifiedOn: ranking.latestVerification ? dayOf(ranking.latestVerification) : null,
+      total: out.total,
+      truncated: out.truncated,
+      entries: out.items.map((e) => ({
+        rank: e.rank,
+        robot: { slug: e.robot.slug, name: e.robot.name, maker: e.robot.manufacturerName, page: pathFor('robot', e.robot.slug, locale) },
+        value: renderValue(e.fact.value, locale),
+        evidenceLevel: e.fact.evidenceLevel,
+        stale: e.stale,
+        source: { name: e.fact.sourceName, url: e.fact.sourceUrl, official: e.fact.sourceIsOfficial, lastVerifiedOn: dayOf(e.fact.lastVerifiedAt) },
+      })),
+    },
+  };
+}
+
+/**
+ * The observatory (`/fr/observatoire`): the figures of the published catalogue (robots by segment, form, country and
+ * year of announcement, claims by evidence level, official prices by band), computed by the page's own function.
+ * Every figure is a count of published rows at the day given in `generatedOn`; the price bands list the robots with the
+ * official page each price was read on and its verification day.
+ */
+export async function getObservatory(
+  ctx: ToolContext,
+  args: { locale?: ToolLocale } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const snapshot = await ctx.data.loadCatalogueSnapshot();
+  const stats = buildObservatory(snapshot, new Date(snapshot.generatedAt), locale);
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    page: `/${locale}/${locale === 'en' ? 'observatory' : 'observatoire'}`,
+    pageOnline: stats.indexable,
+    generatedOn: dayOf(stats.generatedAt),
+    lastVerifiedOn: stats.latestVerification ? dayOf(stats.latestVerification) : null,
+    robots: stats.robotCount,
+    manufacturers: stats.manufacturerCount,
+    sources: stats.sourceCount,
+    claims: stats.claimCount,
+    robotClaims: stats.robotClaimCount,
+    bySegment: stats.bySegment,
+    byForm: stats.byForm.map((f) => ({ form: f.slug, label: f.label, count: f.count })),
+    byCountry: stats.byCountry,
+    byYear: stats.byYear,
+    byEvidence: stats.byEvidence,
+    priceBands: stats.priceBands.map((c) => ({
+      currency: c.currency,
+      note: locale === 'en' ? 'Official public prices in their own currency, never converted.' : 'Prix publics officiels dans leur propre devise, jamais convertis.',
+      bands: c.bands.map((b) => ({
+        from: b.min,
+        to: b.max,
+        robots: b.entries.length,
+        examples: b.entries.slice(0, 10).map((e) => ({
+          robot: { slug: e.robot.slug, name: e.robot.name, page: pathFor('robot', e.robot.slug, locale) },
+          amount: e.amount,
+          stale: e.stale,
+          source: { name: e.fact.sourceName, url: e.fact.sourceUrl, lastVerifiedOn: dayOf(e.fact.lastVerifiedAt) },
+        })),
+      })),
+    })),
+  };
+}
+
+/** Whether a dated claim points to the future at the precision the source gave ("2027" is still to come all through 2026). */
+function isFutureClaimDate(value: ReleaseFactRow['value'], now: Date): boolean {
+  if (!value || value.kind !== 'date' || !value.value) return false;
+  const [year, month] = value.value.split('-').map(Number) as [number, number];
+  const thisYear = now.getUTCFullYear();
+  if (value.precision === 'year') return year > thisYear;
+  if (value.precision === 'month') return year > thisYear || (year === thisYear && month > now.getUTCMonth() + 1);
+  return Date.parse(`${value.value}T00:00:00.000Z`) > now.getTime();
+}
+
+/**
+ * Upcoming releases (`/fr/sorties`): robots announced for pre-order or waitlist, or with a first shipping date still to come.
+ * Same rule as the page; each date and state carries the page it was read on and the day it was last verified.
+ */
+export async function getUpcomingReleases(
+  ctx: ToolContext,
+  args: { limit?: number; locale?: ToolLocale } = {},
+): Promise<unknown> {
+  const locale = args.locale ?? 'fr';
+  const now = new Date();
+  const robots = await ctx.data.listReleaseRobots();
+  const facts = await ctx.data.listReleaseFacts();
+  const byRobot = new Map<string, ReleaseFactRow[]>();
+  for (const f of facts) byRobot.set(f.robot_id, [...(byRobot.get(f.robot_id) ?? []), f]);
+  const entries: Array<{ row: ReleaseRobotRow; dates: ReleaseFactRow[]; states: ReleaseFactRow[]; sortKey: number }> = [];
+  for (const row of robots) {
+    const own = byRobot.get(row.id) ?? [];
+    const shipping = own.filter((f) => f.predicate === 'availability.first_shipping_date');
+    const future = shipping.filter((f) => isFutureClaimDate(f.value, now));
+    const waiting = own.filter(
+      (f) => f.predicate === 'availability.state' && ['preorder', 'waitlist'].includes(String(f.value?.value)),
+    );
+    const released = ['shipping', 'shipping_limited', 'discontinued'].includes(row.commercial_status);
+    const byStatus = ['announced', 'preorder'].includes(row.commercial_status);
+    if (!byStatus && !(waiting.length > 0 && !released) && future.length === 0) continue;
+    const dates = future.length > 0 ? future : shipping;
+    const times = dates.map((f) => Date.parse(`${f.value?.value}T00:00:00.000Z`)).filter((n) => !Number.isNaN(n));
+    entries.push({ row, dates, states: waiting, sortKey: times.length > 0 ? Math.min(...times) : Number.POSITIVE_INFINITY });
+  }
+  entries.sort((a, b) => a.sortKey - b.sortKey || a.row.name.localeCompare(b.row.name, 'fr'));
+  const out = truncate(entries, Math.min(args.limit ?? 20, MAX_ITEMS));
+  const fact = (f: ReleaseFactRow) => ({
+    value: f.value?.value ?? null,
+    precision: f.value?.precision ?? null,
+    state: f.predicate === 'availability.state' ? f.value?.value ?? null : undefined,
+    source: { url: f.source_url, host: hostOf(f.source_url), lastVerifiedOn: dayOf(f.last_verified_at) },
+  });
+  return {
+    disclaimer: TEXT[locale].disclaimer,
+    page: `/${locale}/${locale === 'en' ? 'releases' : 'sorties'}`,
+    total: out.total,
+    truncated: out.truncated,
+    releases: out.items.map((e) => ({
+      robot: { slug: e.row.slug, name: e.row.name, maker: e.row.maker, page: pathFor('robot', e.row.slug, locale) },
+      commercialStatus: e.row.commercial_status,
+      firstShippingDates: e.dates.map(fact),
+      waitingStates: e.states.map(fact),
+    })),
+  };
+}

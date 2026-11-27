@@ -28,3 +28,11 @@ export function normalizeText(input: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+/**
+ * A page text as the extraction gave it before the cell separators and line breaks were kept:
+ * those taken out. Only for finding words copied from that older text.
+ */
+export function gluedReading(text: string): string {
+  return text.replace(/ \| /g, '').replace(/\n+/g, '');
+}

@@ -6,11 +6,33 @@ data (CC BY-NC 4.0) is not in this repository.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-27
+
 ### Added
 
+- The twelve tools the public server (`https://vuntum.com/mcp`) already offered and this source lacked:
+  `get_events`, `get_corrections`, `get_competition_results`, `get_upcoming_releases`,
+  `get_company_figures`, `get_integrators`, `get_component_suppliers`, `get_guides`, `get_authors`,
+  `get_glossary`, `get_rankings` and `get_observatory`. The code now registers the same 32 read-only
+  tools, with the same descriptions and input schemas, as the server on vuntum.com. None of them needs a
+  pro key.
+- `server/sql/schema.sql`: tables `public_robot_category`, `public_event`, `public_correction`,
+  `public_competition_result`, `public_company_figure`, `public_integrator_partnership`,
+  `public_author` and `public_glossary_entry`; column `public_robot.home_task`; columns `robot_name`,
+  `manufacturer_name`, `country_code`, `ownership` and `confirmed_at` on `public_component_link`. A
+  database created with 0.3.0 needs these additions (see the file), the new tools read them.
+- Fictitious rows for each new table in `server/sql/seed.sql`, and tests that call the twelve tools on the
+  seed.
 - Dependabot opens weekly pull requests for npm dependencies (minor and patch grouped) and monthly
   ones for GitHub Actions.
 - Issue template for server bugs; data errors go to contact@vuntum.com.
+
+### Changed
+
+- The server instructions point to the monthly open snapshot of the Vuntum data, as on vuntum.com.
+- The descriptions of `get_change_history` and `get_fact_sources` give the pro access address
+  `https://vuntum.com/en/business#demande`.
+- `examples/check.mjs` and the documentation expect the 32 tools.
 
 ## [0.3.0] - 2026-11-24
 

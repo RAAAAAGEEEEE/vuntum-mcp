@@ -2,7 +2,7 @@
 
 ## Design
 
-- **Read-only.** The 20 tools are annotated `readOnlyHint: true`; [`npm run check`](../examples/check.mjs)
+- **Read-only.** The 32 tools are annotated `readOnlyHint: true`; [`npm run check`](../examples/check.mjs)
   fails if one is not.
 - **No authentication, no secret.** The public server needs no key or account for free use, and
   nothing in this repository holds one. A pro key is optional; the server only stores its SHA-256
