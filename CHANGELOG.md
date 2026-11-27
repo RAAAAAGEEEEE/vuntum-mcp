@@ -6,6 +6,12 @@ data (CC BY-NC 4.0) is not in this repository.
 
 ## [Unreleased]
 
+### Added
+
+- Dependabot opens weekly pull requests for npm dependencies (minor and patch grouped) and monthly
+  ones for GitHub Actions.
+- Issue template for server bugs; data errors go to contact@vuntum.com.
+
 ## [0.3.0] - 2026-11-24
 
 ### Added

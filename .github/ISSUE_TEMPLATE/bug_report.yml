@@ -1,0 +1,23 @@
+name: Server bug
+description: A tool fails, times out or returns a malformed answer.
+labels: [bug]
+body:
+  - type: input
+    id: tool
+    attributes:
+      label: Tool
+      description: Name of the tool, for example get_robot.
+    validations:
+      required: true
+  - type: textarea
+    id: call
+    attributes:
+      label: Call and answer
+      description: The arguments you sent and what came back (remove any key).
+    validations:
+      required: true
+  - type: input
+    id: transport
+    attributes:
+      label: Transport and client
+      description: stdio or https://vuntum.com/mcp, and the MCP client you use.
